@@ -1,0 +1,8 @@
+{
+  "name": "agent-flow-studio-pet",
+  "version": "0.1.0",
+  "description": "AgentFlow Studio floating pet window — always-on-top mini progress card that expands into the full canvas. Run with any local Electron binary (clawd-on-desk's Electron is reused automatically).",
+  "main": "main.js",
+  "license": "MIT",
+  "private": true
+}

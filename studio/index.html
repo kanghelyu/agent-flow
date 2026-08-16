@@ -1,0 +1,797 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AgentFlow Studio</title>
+<style>
+:root{
+  --bg:#f7f8fa;--layer:#ffffff;--layer2:#f1f3f7;--border:#e2e6ee;--border2:#cdd4e0;
+  --ink:#1c2430;--ink2:#68738a;--brand:#4f6ef7;--on-brand:#fff;
+  --ok:#1f9d63;--warn:#c98a1c;--err:#d64550;
+  --node-w:208px;--node-h:116px;
+}
+:root[data-theme="dark"]{
+  --bg:#101216;--layer:#171a20;--layer2:#20242c;--border:#2b303a;--border2:#3a414e;
+  --ink:#eef2f8;--ink2:#aeb7c6;--brand:#78a8ff;--on-brand:#101216;--ok:#60d394;--warn:#f1c86b;--err:#ff7f87
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#101216;--layer:#171a20;--layer2:#20242c;--border:#2b303a;--border2:#3a414e;
+    --ink:#eef2f8;--ink2:#aeb7c6;--brand:#78a8ff;--on-brand:#101216;--ok:#60d394;--warn:#f1c86b;--err:#ff7f87
+  }
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
+  font:13px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+button{font:inherit;cursor:pointer}
+.topbar{flex:none;display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--layer);border-bottom:1px solid var(--border)}
+.topbar .logo{display:flex;align-items:center;gap:7px;font-weight:750}
+.topbar .logo .spark{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:color-mix(in srgb,var(--brand) 14%,transparent);color:var(--brand);font-weight:800}
+.topbar select,.topbar input{border:1px solid var(--border2);border-radius:7px;background:var(--layer2);color:var(--ink);padding:5px 8px;outline:0}
+.topbar select:focus,.topbar input:focus{border-color:var(--brand)}
+.btn{border:1px solid var(--border2);border-radius:8px;background:var(--layer2);color:var(--ink);padding:5px 10px}
+.btn:hover{border-color:var(--brand)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:var(--on-brand);font-weight:650}
+.btn.danger{color:var(--err)}
+.btn.mini{padding:2px 8px;font-size:11px}
+.progress{display:flex;align-items:center;gap:7px;color:var(--ink2);font-size:12px}
+.progress .bar{width:110px;height:7px;border-radius:99px;background:var(--layer2);border:1px solid var(--border);overflow:hidden}
+.progress .bar i{display:block;height:100%;background:var(--brand)}
+.status{margin-left:auto;color:var(--ink2);font-size:12px;max-width:30%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.main{flex:1;display:flex;min-height:0}
+.canvas{flex:1;position:relative;overflow:hidden;user-select:none;background-color:var(--bg);
+  background-image:radial-gradient(circle,var(--border2) 1.1px,transparent 1.2px);
+  background-size:24px 24px;cursor:grab;touch-action:none}
+.canvas.panning{cursor:grabbing}
+.stage{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+.edges{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none}
+.edge{fill:none;stroke:var(--brand);stroke-width:2.6;stroke-linecap:round;vector-effect:non-scaling-stroke;pointer-events:none}
+.edge.sel{stroke-width:3.8;filter:drop-shadow(0 0 4px color-mix(in srgb,var(--brand) 55%,transparent))}
+.edge-hit{fill:none;stroke:transparent;stroke-width:16;vector-effect:non-scaling-stroke;pointer-events:stroke;cursor:pointer}
+.conn{fill:none;stroke:var(--brand);stroke-width:2;stroke-dasharray:7 5;vector-effect:non-scaling-stroke;pointer-events:none}
+.edge-label-bg{fill:var(--layer);stroke:var(--border);vector-effect:non-scaling-stroke}
+.edge-label{fill:var(--ink);font-size:10px;font-weight:700;text-anchor:middle;dominant-baseline:middle;pointer-events:none}
+.node{position:absolute;width:var(--node-w);height:var(--node-h);cursor:grab}
+.node.dragging{cursor:grabbing}
+.card{width:100%;height:100%;padding:12px 14px;border:1px solid var(--border2);border-radius:12px;overflow:hidden;
+  background:color-mix(in srgb,var(--layer) 96%,var(--brand) 4%);box-shadow:0 8px 24px color-mix(in srgb,var(--ink) 9%,transparent);
+  transition:border-color .15s ease,box-shadow .15s ease}
+.node:hover .card{border-color:color-mix(in srgb,var(--brand) 55%,var(--border2))}
+.node.sel .card{border-color:var(--brand);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 20%,transparent)}
+.node.ready .card{border-color:color-mix(in srgb,var(--ok) 60%,var(--border2))}
+.kind{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink2);margin-bottom:2px;display:flex;gap:6px;align-items:center}
+.k-input .kind{color:var(--ok)} .k-agent .kind{color:var(--brand)} .k-mapAgent .kind{color:var(--warn)}
+.k-condition .kind{color:var(--warn)} .k-merge .kind{color:var(--ink2)} .k-output .kind{color:var(--err)}
+.gate-chip{padding:1px 6px;border-radius:99px;background:color-mix(in srgb,var(--warn) 16%,transparent);font-weight:700}
+.nlabel{font-weight:650;font-size:13px;word-break:break-word}
+.nprompt{margin-top:5px;font-size:11px;color:var(--ink2);white-space:pre-wrap;max-height:32px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.npath{margin-top:7px;padding-top:6px;border-top:1px solid var(--border);font:10px/1.3 ui-monospace,Menlo,monospace;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.done-mark{position:absolute;top:-9px;right:-9px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;
+  background:var(--ok);color:#fff;font-size:12px;font-weight:800;border:2px solid var(--bg)}
+.formula{position:absolute;left:10px;right:10px;bottom:6px;font:9px/1.2 ui-monospace,Menlo,monospace;color:var(--ink2);white-space:nowrap;overflow:hidden}
+.handle{position:absolute;top:50%;width:13px;height:13px;border:2px solid var(--bg);border-radius:50%;background:var(--brand);
+  transform:translateY(-50%);cursor:crosshair;z-index:3}
+.handle.t{left:-6px} .handle.s{right:-6px}
+.handle:hover{box-shadow:0 0 0 5px color-mix(in srgb,var(--brand) 18%,transparent)}
+.node.hover-target .card{outline:2px solid var(--brand);outline-offset:3px}
+.controls{position:absolute;left:12px;bottom:12px;display:grid;border:1px solid var(--border2);border-radius:9px;overflow:hidden;background:var(--layer);box-shadow:0 8px 20px color-mix(in srgb,var(--ink) 10%,transparent)}
+.controls button{width:34px;height:30px;border:0;border-bottom:1px solid var(--border);background:var(--layer2);color:var(--ink);font-weight:750}
+.controls button:last-child{border-bottom:0}
+.controls button:hover{background:color-mix(in srgb,var(--brand) 10%,var(--layer2));color:var(--brand)}
+.addbar{flex:none;display:flex;align-items:center;gap:6px;padding:7px 14px;border-top:1px solid var(--border);background:var(--layer);flex-wrap:wrap}
+.addbar .hint{margin-left:auto;color:var(--ink2);font-size:10px}
+.inspector{flex:none;width:340px;display:flex;flex-direction:column;background:var(--layer);border-left:1px solid var(--border);min-height:0}
+.inspector .scroll{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.inspector h3{margin:0;font-size:14px}
+.inspector label{display:grid;gap:4px;color:var(--ink2);font-size:12px}
+.inspector input,.inspector select,.inspector textarea{width:100%;border:1px solid var(--border2);border-radius:7px;background:var(--layer2);color:var(--ink);padding:6px 8px;outline:0}
+.inspector input:focus,.inspector select:focus,.inspector textarea:focus{border-color:var(--brand)}
+.inspector textarea{min-height:220px;resize:none;font:11px/1.55 ui-monospace,Menlo,monospace}
+.pathbox{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border:1px solid var(--border);border-radius:9px;background:var(--layer2)}
+.pathbox .k{font-size:10px;color:var(--ink2)} .pathbox .v{font:10px/1.4 ui-monospace,Menlo,monospace;word-break:break-all}
+.chip-row{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:2px 9px;border-radius:99px;border:1px solid var(--border);color:var(--ink2);font-size:11px}
+.chip.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,var(--border))}
+.chip.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,var(--border))}
+.dialog-bg{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop-filter:blur(4px)}
+.dialog{width:min(540px,92vw);max-height:80vh;overflow:auto;padding:18px;border:1px solid var(--border2);border-radius:14px;background:var(--layer);box-shadow:0 20px 60px color-mix(in srgb,var(--ink) 18%,transparent)}
+.dialog h3{margin:0 0 8px;font-size:15px}
+.dialog p{margin:0;color:var(--ink2);font-size:12px;line-height:1.6}
+.dialog .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.gate-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:12px}
+.gate-choice{display:flex;min-height:74px;flex-direction:column;gap:4px;text-align:left;border:1px solid var(--border2);border-radius:11px;background:var(--layer2);padding:10px}
+.gate-choice:hover{border-color:var(--brand)}
+.gate-choice strong{font-size:12px;color:var(--brand)}
+.gate-choice span{font-size:10px;color:var(--ink2)}
+.branch-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.branch-grid button{min-height:50px;border:1px solid var(--border2);border-radius:11px;background:var(--layer2);font-size:14px;font-weight:750}
+.branch-grid button:hover:not(:disabled){border-color:var(--brand);color:var(--brand)}
+.branch-grid button:disabled{opacity:.38;text-decoration:line-through}
+.eval-panel{position:absolute;right:14px;top:14px;width:300px;max-height:60%;overflow:auto;z-index:20;padding:12px;border:1px solid var(--border2);border-radius:12px;background:var(--layer);box-shadow:0 14px 36px color-mix(in srgb,var(--ink) 16%,transparent);display:none}
+.eval-panel.open{display:block}
+.eval-panel textarea{width:100%;min-height:64px;border:1px solid var(--border2);border-radius:8px;background:var(--layer2);color:var(--ink);font:11px/1.5 ui-monospace,Menlo,monospace}
+.eval-out{margin-top:8px;font:10px/1.5 ui-monospace,Menlo,monospace;color:var(--ink2);white-space:pre-wrap;word-break:break-all}
+.empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--ink2);text-align:center;padding:24px}
+body.pet .topbar,body.pet .addbar,body.pet .inspector,body.pet .eval-panel{display:none}
+body.pet{background:var(--layer)}
+body.pet .canvas{background-image:none;cursor:pointer}
+.pet-card{position:absolute;inset:10px;border-radius:14px;border:1px solid var(--border2);background:var(--layer2);
+  display:flex;flex-direction:column;justify-content:center;gap:6px;padding:12px 14px;-webkit-app-region:drag;cursor:pointer;
+  box-shadow:0 10px 30px color-mix(in srgb,var(--ink) 14%,transparent)}
+.pet-card .t{display:flex;align-items:center;gap:8px;font-weight:750}
+.pet-card .t .spark{width:24px;height:24px;border-radius:8px;display:grid;place-items:center;background:color-mix(in srgb,var(--brand) 14%,transparent);color:var(--brand)}
+.pet-card .sub{color:var(--ink2);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pet-card .bar{height:7px;border-radius:99px;background:var(--layer);border:1px solid var(--border);overflow:hidden}
+.pet-card .bar i{display:block;height:100%;background:var(--brand)}
+@media(max-width:900px){.inspector{position:absolute;right:0;top:0;bottom:0;z-index:10;box-shadow:-10px 0 30px color-mix(in srgb,var(--ink) 14%,transparent)}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="logo"><span class="spark">✦</span>AgentFlow Studio</span>
+  <select id="flowSelect"></select>
+  <span class="progress"><span class="bar"><i id="progressBar"></i></span><span id="progressText">–</span></span>
+  <button class="btn" id="btnValidate" data-i18n="validate">校验</button>
+  <button class="btn" id="btnEvaluate" data-i18n="evaluate">求值</button>
+  <button class="btn" id="btnLayout" data-i18n="layout">整理布局</button>
+  <span class="status" id="status">–</span>
+  <button class="btn mini" id="btnTheme" title="Light / Dark">🌓</button>
+  <button class="btn mini" id="btnLang">EN</button>
+  <button class="btn mini" id="btnCollapse" style="display:none">⌃</button>
+</div>
+<div class="main">
+  <div class="canvas" id="canvas">
+    <div class="stage" id="stage">
+      <svg class="edges" id="edgesSvg" width="1" height="1" aria-label="arrows"><defs>
+        <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth" viewBox="0 0 10 10"><path d="M 0 0 L 10 5 L 0 10 Z" fill="var(--brand)"></path></marker>
+      </defs></svg>
+      <div id="nodesLayer"></div>
+    </div>
+    <div class="controls">
+      <button id="zoomIn" title="+">+</button>
+      <button id="zoomOut" title="−">−</button>
+      <button id="fitView" title="⊙">⊙</button>
+    </div>
+    <div class="eval-panel" id="evalPanel">
+      <strong data-i18n="evalTitle">逻辑门求值</strong>
+      <textarea id="evalValues">{"node-id": true}</textarea>
+      <div style="display:flex;gap:6px;margin-top:6px">
+        <button class="btn mini" id="evalRun" data-i18n="evalRun">计算</button>
+        <button class="btn mini" id="evalClose" data-i18n="close">关闭</button>
+      </div>
+      <div class="eval-out" id="evalOut"></div>
+    </div>
+    <div class="empty" id="emptyState" style="display:none" data-i18n-html="empty"></div>
+    <div class="pet-card" id="petCard" style="display:none">
+      <div class="t"><span class="spark">✦</span><span id="petName">–</span></div>
+      <div class="sub" id="petNext">–</div>
+      <div class="bar"><i id="petBar"></i></div>
+    </div>
+  </div>
+  <aside class="inspector" id="inspector">
+    <div class="scroll" id="inspectorBody"></div>
+  </aside>
+</div>
+<div class="addbar" id="addbar">
+  <span style="color:var(--ink2);font-size:11px" data-i18n="newNode">新建</span>
+  <button class="btn mini" data-kind="input">Input</button>
+  <button class="btn mini" data-kind="agent">Agent</button>
+  <button class="btn mini" data-kind="mapAgent">Map Agent</button>
+  <button class="btn mini" data-kind="condition" data-i18n="kCondition">条件</button>
+  <button class="btn mini" data-kind="merge" data-i18n="kMerge">合并</button>
+  <button class="btn mini" data-kind="output" data-i18n="kOutput">输出</button>
+  <span class="hint" data-i18n="addHint">从右侧圆点拖到目标框连线；Delete 删除选中</span>
+</div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const NW = 208, NH = 116;
+const params = new URLSearchParams(location.search);
+const petMode = params.get("mode") === "pet";
+
+const COPY = {
+  zh: {
+    validate: "校验", evaluate: "求值", layout: "整理布局", close: "关闭",
+    evalTitle: "逻辑门求值", evalRun: "计算", newNode: "新建",
+    kCondition: "条件", kMerge: "合并", kOutput: "输出",
+    addHint: "从右侧圆点拖到目标框连线；Delete 删除选中",
+    empty: "还没有工作流。<br>回到终端让 Agent 运行 <code>af create</code>，或用 <code>af create --json flow.json</code> 导入。",
+    ready: "就绪", savedDoc: "已保存到 ", nodeAdded: "节点已添加", edgeAdded: "箭头已连接",
+    edgeDeleted: "箭头已删除", invalid: "结构不合法",
+    selectTitle: "选择一个节点",
+    selectBody: "点击画布中的流程框查看和编辑它的 STEP.md、标记完成状态。",
+    selectTip: "点击流程框查看 STEP.md 与状态；画布空白处拖动平移，Ctrl/⌘+滚轮缩放。",
+    master: "总纲", edge: "箭头", connect: "连接", deleteEdge: "删除箭头",
+    stepDoc: "STEP 文档", markdown: "Markdown 内容", saveDoc: "保存文档",
+    markDone: "标记完成", undoDone: "撤销完成", deleteNode: "删除节点",
+    chipDone: "已完成", chipReady: "可执行", chipWaiting: "等待 ", chipIdle: "未开始",
+    branchTitle: "选择判断分支", branchIntro: "「是」和「否」各只能连接一个目标。",
+    gateTitle: "选择条件框的逻辑门",
+    gateIntro: "门会计算入边布尔值并传播真实结果，不只是箭头标签。",
+    cancel: "取消",
+    petAllDone: "全部完成 ✓", petNext: "下一步：", noFlow: "暂无工作流",
+    kinds: { input: "输入", agent: "Agent", mapAgent: "Map Agent", condition: "条件", merge: "合并", output: "输出" },
+    gateShort: { ifElse: "是/否", and: "与", or: "或", not: "非", nand: "与非", nor: "或非", xor: "异或", xnor: "同或" },
+    branch: { true: "是", false: "否", and: "与", or: "或", not: "非", nand: "与非", nor: "或非", xor: "异或", xnor: "同或" },
+    gates: [
+      ["ifElse", "是 / 否（IF / ELSE）", "一个输入；按真值选择分支"],
+      ["and", "与门（AND）", "至少两个输入；全部为真才传播"],
+      ["or", "或门（OR）", "至少两个输入；任一为真即传播"],
+      ["not", "非门（NOT）", "一个输入；取反后传播"],
+      ["nand", "与非（NAND）", "AND 结果取反"],
+      ["nor", "或非（NOR）", "OR 结果取反"],
+      ["xor", "异或（XOR）", "真值个数为奇数时为真"],
+      ["xnor", "同或（XNOR）", "真值个数为偶数时为真"]
+    ],
+    validateOk: "✓ 结构合法：", validateBad: "✗ "
+  },
+  en: {
+    validate: "Validate", evaluate: "Evaluate", layout: "Tidy layout", close: "Close",
+    evalTitle: "Gate evaluation", evalRun: "Run", newNode: "New",
+    kCondition: "Condition", kMerge: "Merge", kOutput: "Output",
+    addHint: "Drag from the right dot to another box to connect; Delete removes the selection",
+    empty: "No workflows yet.<br>Ask your agent to run <code>af create</code> in the terminal, or import with <code>af create --json flow.json</code>.",
+    ready: "Ready", savedDoc: "Saved to ", nodeAdded: "Node added", edgeAdded: "Arrow connected",
+    edgeDeleted: "Arrow deleted", invalid: "Invalid structure",
+    selectTitle: "Select a node",
+    selectBody: "Click a flow box to view and edit its STEP.md and mark progress.",
+    selectTip: "Click a box to open its STEP.md; drag empty space to pan, Ctrl/Cmd+wheel to zoom.",
+    master: "Master workflow", edge: "Arrow", connect: "Connection", deleteEdge: "Delete arrow",
+    stepDoc: "STEP document", markdown: "Markdown content", saveDoc: "Save document",
+    markDone: "Mark done", undoDone: "Undo done", deleteNode: "Delete node",
+    chipDone: "Done", chipReady: "Ready", chipWaiting: "Waiting for ", chipIdle: "Not started",
+    branchTitle: "Choose a branch", branchIntro: "Yes and No can each connect to one target only.",
+    gateTitle: "Choose a logic gate",
+    gateIntro: "Gates compute incoming Boolean values and propagate real results — not just labels.",
+    cancel: "Cancel",
+    petAllDone: "All done ✓", petNext: "Next: ", noFlow: "No workflow",
+    kinds: { input: "Input", agent: "Agent", mapAgent: "Map Agent", condition: "Condition", merge: "Merge", output: "Output" },
+    gateShort: { ifElse: "Y/N", and: "AND", or: "OR", not: "NOT", nand: "NAND", nor: "NOR", xor: "XOR", xnor: "XNOR" },
+    branch: { true: "Yes", false: "No", and: "AND", or: "OR", not: "NOT", nand: "NAND", nor: "NOR", xor: "XOR", xnor: "XNOR" },
+    gates: [
+      ["ifElse", "Yes / No (IF / ELSE)", "One input; selects a branch from its truth value"],
+      ["and", "AND gate", "Two or more inputs; true only when every input is true"],
+      ["or", "OR gate", "Two or more inputs; true when any input is true"],
+      ["not", "NOT gate", "One input; inverted and propagated"],
+      ["nand", "NAND gate", "Inverted AND result"],
+      ["nor", "NOR gate", "Inverted OR result"],
+      ["xor", "XOR gate", "True when an odd number of inputs are true"],
+      ["xnor", "XNOR gate", "True when an even number of inputs are true"]
+    ],
+    validateOk: "✓ Valid: ", validateBad: "✗ "
+  }
+};
+let LANG = params.get("lang") === "en" ? "en" : params.get("lang") === "zh" ? "zh"
+  : (String(navigator.language ?? "en").toLowerCase().startsWith("zh") ? "zh" : "en");
+try { LANG = localStorage.getItem("af-lang") ?? LANG; } catch {}
+const T = COPY[LANG];
+const KIND_LABELS = T.kinds;
+const GATES = T.gates;
+
+// 主题：?theme=dark|light 或跟随系统；切换写入 localStorage。
+let THEME = params.get("theme");
+try { THEME = THEME || localStorage.getItem("af-theme") || ""; } catch {}
+if (THEME === "dark" || THEME === "light") document.documentElement.dataset.theme = THEME;
+function applyI18n() {
+  for (const el of document.querySelectorAll("[data-i18n]")) el.textContent = T[el.dataset.i18n] ?? el.textContent;
+  for (const el of document.querySelectorAll("[data-i18n-html]")) el.innerHTML = T[el.dataset.i18nHtml] ?? el.innerHTML;
+  $("btnLang").textContent = LANG === "zh" ? "EN" : "中文";
+  $("btnCollapse").title = T.close;
+}
+if (petMode) document.body.classList.add("pet");
+applyI18n();
+$("btnTheme").addEventListener("click", () => {
+  const next = (document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")) === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem("af-theme", next); } catch {}
+});
+$("btnLang").addEventListener("click", () => {
+  const next = LANG === "zh" ? "en" : "zh";
+  try { localStorage.setItem("af-lang", next); } catch {}
+  const query = new URLSearchParams(location.search);
+  query.set("lang", next);
+  location.search = query.toString();
+});
+
+const state = {
+  flows: [], id: null, detail: null,
+  selected: null, selectedEdge: null,
+  view: { x: 24, y: 24, zoom: 0.85 },
+  liveDrag: null, conn: null, dirtySel: null
+};
+
+async function api(path, options) {
+  const res = await fetch(path, options ? {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(options)
+  } : undefined);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || data.issues?.join("\n") || res.statusText);
+  return data;
+}
+const setStatus = (text) => { $("status").textContent = text; };
+
+/* ---------- 渲染 ---------- */
+function nodeById(id) { return state.detail?.nodes.find((n) => n.id === id) ?? null; }
+
+function edgeGeometry(edge) {
+  const s = nodeById(edge.source), t = nodeById(edge.target);
+  if (!s || !t) return null;
+  const start = { x: s.position.x + NW, y: s.position.y + NH / 2 };
+  const end = { x: t.position.x, y: t.position.y + NH / 2 };
+  const forward = Math.max(54, Math.abs(end.x - start.x) * 0.46);
+  const bend = end.x >= start.x ? forward : Math.max(90, forward * 0.7);
+  return { start, end,
+    path: `M ${start.x} ${start.y} C ${start.x + bend} ${start.y}, ${end.x - bend} ${end.y}, ${end.x} ${end.y}` };
+}
+
+function applyView() {
+  $("stage").style.transform = `translate(${state.view.x}px,${state.view.y}px) scale(${state.view.zoom})`;
+}
+
+function edgeGroup(edge, svg, sp, tp) {
+  const start = { x: sp.x + NW, y: sp.y + NH / 2 }, end = { x: tp.x, y: tp.y + NH / 2 };
+  const forward = Math.max(54, Math.abs(end.x - start.x) * 0.46);
+  const bend = end.x >= start.x ? forward : Math.max(90, forward * 0.7);
+  const d = `M ${start.x} ${start.y} C ${start.x + bend} ${start.y}, ${end.x - bend} ${end.y}, ${end.x} ${end.y}`;
+  const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  group.setAttribute("class", "edge-group");
+  const hit = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  hit.setAttribute("class", "edge-hit"); hit.setAttribute("d", d);
+  hit.addEventListener("pointerdown", (e) => e.stopPropagation());
+  hit.addEventListener("click", (e) => { e.stopPropagation(); selectEdge(edge.id); });
+  const vis = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  vis.setAttribute("class", "edge" + (state.selectedEdge === edge.id ? " sel" : ""));
+  vis.setAttribute("d", d); vis.setAttribute("marker-end", "url(#arrow)");
+  group.append(hit, vis);
+  if (edge.label) {
+    const lg = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    lg.setAttribute("transform", `translate(${(start.x + end.x) / 2} ${(start.y + end.y) / 2})`);
+    const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    bg.setAttribute("class", "edge-label-bg"); bg.setAttribute("x", -18); bg.setAttribute("y", -10);
+    bg.setAttribute("width", 36); bg.setAttribute("height", 20); bg.setAttribute("rx", 7);
+    const tx = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    tx.setAttribute("class", "edge-label"); tx.textContent = edge.label;
+    lg.append(bg, tx); group.append(lg);
+  }
+  svg.append(group);
+}
+
+function render() {
+  // 宠物迷你模式只更新卡片，不渲染整张画布（窗口只有卡片大小）。
+  if (petMode) { updatePet(); return; }
+  const d = state.detail;
+  $("flowSelect").innerHTML = state.flows.map((f) =>
+    `<option value="${f.id}" ${f.id === state.id ? "selected" : ""}>${f.name}（${f.done}/${f.total}）</option>`).join("");
+  const svg = $("edgesSvg");
+  [...svg.querySelectorAll(".edge-group,.conn")].forEach((el) => el.remove());
+  const layer = $("nodesLayer");
+  layer.innerHTML = "";
+  if (!d) { $("emptyState").style.display = "grid"; updatePet(); return; }
+  $("emptyState").style.display = "none";
+  $("progressText").textContent = `${d.progress.done}/${d.progress.total}`;
+  $("progressBar").style.width = (d.progress.total ? Math.round(d.progress.done / d.progress.total * 100) : 0) + "%";
+
+  for (const edge of d.edges) {
+    const s = nodeById(edge.source), t = nodeById(edge.target);
+    if (!s || !t) continue;
+    const sp = state.liveDrag?.id === edge.source ? state.liveDrag.position : s.position;
+    const tp = state.liveDrag?.id === edge.target ? state.liveDrag.position : t.position;
+    edgeGroup(edge, svg, sp, tp);
+  }
+
+  for (const node of d.nodes) {
+    const el = document.createElement("div");
+    const pos = state.liveDrag?.id === node.id ? state.liveDrag.position : node.position;
+    el.className = `node k-${node.kind}` +
+      (state.selected === node.id ? " sel" : "") +
+      (node.ready && !node.done ? " ready" : "") +
+      (state.conn?.hover === node.id ? " hover-target" : "") +
+      (state.liveDrag?.id === node.id ? " dragging" : "");
+    el.style.left = pos.x + "px"; el.style.top = pos.y + "px";
+    el.dataset.id = node.id;
+    const kindText = node.kind === "condition" && node.gateType
+      ? `${KIND_LABELS[node.kind]} · <span class="gate-chip">${T.gateShort[node.gateType] ?? node.gateType}</span>`
+      : KIND_LABELS[node.kind] ?? node.kind;
+    el.innerHTML = `
+      ${node.done ? '<span class="done-mark">✓</span>' : ""}
+      <div class="card">
+        <div class="kind">${kindText}</div>
+        <div class="nlabel">${escapeHtml(node.label)}</div>
+        ${node.content ? `<div class="nprompt">${escapeHtml(node.content)}</div>` : ""}
+        <div class="npath">${escapeHtml(node.path)}</div>
+        ${node.kind === "condition" && node.formula ? `<div class="formula">${escapeHtml(node.formula)}</div>` : ""}
+      </div>
+      <button class="handle t" title="in"></button>
+      <button class="handle s" title="out"></button>`;
+    el.addEventListener("pointerdown", (e) => beginNodeDrag(node, e));
+    el.addEventListener("click", (e) => { e.stopPropagation(); selectNode(node.id); });
+    el.querySelector(".handle.s").addEventListener("pointerdown", (e) => beginConnect(node, e));
+    el.querySelector(".handle.t").addEventListener("pointerdown", (e) => e.stopPropagation());
+    layer.append(el);
+  }
+
+  if (state.conn) {
+    const s = nodeById(state.conn.source);
+    if (s) {
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("class", "conn");
+      const sx = s.position.x + NW, sy = s.position.y + NH / 2;
+      const { x, y } = state.conn.end;
+      const bend = Math.max(54, Math.abs(x - sx) * 0.46);
+      path.setAttribute("d", `M ${sx} ${sy} C ${sx + bend} ${sy}, ${x - bend} ${y}, ${x} ${y}`);
+      svg.append(path);
+    }
+  }
+  updatePet();
+  renderInspector();
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
+
+function updatePet() {
+  if (!petMode) return;
+  const d = state.detail;
+  $("petCard").style.display = "grid";
+  if (!d) { $("petName").textContent = "AgentFlow"; $("petNext").textContent = T.noFlow; $("petBar").style.width = "0%"; return; }
+  $("petName").textContent = d.name;
+  const readyNode = d.nodes.find((n) => n.ready && !n.done);
+  $("petNext").textContent = readyNode ? `${T.petNext}${readyNode.label}` : T.petAllDone;
+  $("petBar").style.width = (d.progress.total ? Math.round(d.progress.done / d.progress.total * 100) : 0) + "%";
+}
+
+/* ---------- 检查器 ---------- */
+function selectNode(id) {
+  state.selected = id; state.selectedEdge = null; state.dirtySel = null;
+  render();
+}
+function selectEdge(id) {
+  state.selectedEdge = id; state.selected = null;
+  render();
+}
+function renderInspector() {
+  const body = $("inspectorBody");
+  const d = state.detail;
+  if (!d) { body.innerHTML = `<h3>${T.selectTitle}</h3>`; return; }
+  if (state.selectedEdge) {
+    const edge = d.edges.find((e) => e.id === state.selectedEdge);
+    if (!edge) { state.selectedEdge = null; return renderInspector(); }
+    body.innerHTML = `
+      <h3>${T.edge}</h3>
+      <div class="pathbox"><span class="k">${T.connect}</span><span class="v">${escapeHtml(nodeById(edge.source)?.label ?? edge.source)} → ${escapeHtml(nodeById(edge.target)?.label ?? edge.target)}</span></div>
+      ${edge.label ? `<div class="chip-row"><span class="chip">${escapeHtml(edge.label)}</span></div>` : ""}
+      <button class="btn danger" id="insDeleteEdge">${T.deleteEdge}</button>`;
+    $("insDeleteEdge").onclick = async () => {
+      try { await api(postUrl("edge-delete"), { edgeId: edge.id }); setStatus(T.edgeDeleted); await refresh(); }
+      catch (e) { setStatus(e.message); }
+    };
+    return;
+  }
+  const node = state.selected ? nodeById(state.selected) : null;
+  if (!node) {
+    body.innerHTML = `<h3>${T.selectTitle}</h3><p style="color:var(--ink2);font-size:12px">${T.selectTip}</p>
+      <div class="pathbox"><span class="k">${T.master}</span><span class="v">${escapeHtml(d.docRoot ?? "")}/${escapeHtml(d.workflowDoc)}</span></div>`;
+    return;
+  }
+  const draft = state.dirtySel ?? node.content;
+  const stateChip = node.done
+    ? `<span class="chip ok">${T.chipDone}</span>`
+    : node.ready ? `<span class="chip ok">${T.chipReady}</span>`
+    : node.blockedBy ? `<span class="chip warn">${T.chipWaiting}${escapeHtml(node.blockedBy.map((id) => nodeById(id)?.label ?? id).join("、"))}</span>`
+    : `<span class="chip">${T.chipIdle}</span>`;
+  body.innerHTML = `
+    <h3>${escapeHtml(node.label)}</h3>
+    <div class="chip-row">
+      <span class="chip">${KIND_LABELS[node.kind] ?? node.kind}</span>
+      ${stateChip}
+      ${node.gateType ? `<span class="chip warn">${node.gateType} · ${escapeHtml(node.formula)}</span>` : ""}
+    </div>
+    <div class="pathbox"><span class="k">${T.stepDoc}</span><span class="v">${escapeHtml(node.path)}</span></div>
+    <label>label<input id="insLabel" value="${escapeHtml(node.label)}"></label>
+    ${node.kind === "condition" ? `<label>${T.gateTitle}<select id="insGate">${GATES.map(([g, name]) => `<option value="${g}" ${g === node.gateType ? "selected" : ""}>${name}</option>`).join("")}</select></label>
+    <label>predicate<select id="insPredicate">${["truthy","falsy","nonEmpty"].map((p) => `<option ${p === node.predicate ? "selected" : ""}>${p}</option>`).join("")}</select></label>` : ""}
+    <label>${T.markdown}<textarea id="insDoc" spellcheck="false">${escapeHtml(draft)}</textarea></label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn primary" id="insSave">${T.saveDoc}</button>
+      <button class="btn ${node.done ? "" : "primary"}" id="insToggleDone">${node.done ? T.undoDone : T.markDone}</button>
+      <button class="btn danger" id="insDeleteNode">${T.deleteNode}</button>
+    </div>`;
+  $("insLabel").addEventListener("change", async (e) => {
+    try { await api(postUrl("node-patch"), { nodeId: node.id, patch: { label: e.target.value } }); await refresh(); }
+    catch (err) { setStatus(err.message); }
+  });
+  const gateSel = $("insGate");
+  if (gateSel) gateSel.addEventListener("change", async (e) => {
+    try { await api(postUrl("node-patch"), { nodeId: node.id, patch: { gateType: e.target.value } }); await refresh(); }
+    catch (err) { setStatus(err.message); }
+  });
+  const predSel = $("insPredicate");
+  if (predSel) predSel.addEventListener("change", async (e) => {
+    try { await api(postUrl("node-patch"), { nodeId: node.id, patch: { predicate: e.target.value } }); await refresh(); }
+    catch (err) { setStatus(err.message); }
+  });
+  $("insDoc").addEventListener("input", (e) => { state.dirtySel = e.target.value; });
+  $("insSave").onclick = async () => {
+    try { await api(postUrl("doc"), { nodeId: node.id, content: state.dirtySel ?? node.content }); state.dirtySel = null; setStatus(T.savedDoc + node.path); await refresh(); }
+    catch (e) { setStatus(e.message); }
+  };
+  $("insToggleDone").onclick = async () => {
+    try { await api(postUrl(node.done ? "undo" : "done"), { nodeId: node.id }); await refresh(); }
+    catch (e) { setStatus(e.message); }
+  };
+  $("insDeleteNode").onclick = async () => {
+    if (!confirm(`${T.deleteNode}: ${node.label}?`)) return;
+    try { await api(postUrl("node-delete"), { nodeId: node.id }); state.selected = null; await refresh(); }
+    catch (e) { setStatus(e.message); }
+  };
+}
+
+/* ---------- 画布手势 ---------- */
+function screenToWorld(cx, cy) {
+  const rect = $("canvas").getBoundingClientRect();
+  return { x: (cx - rect.left - state.view.x) / state.view.zoom, y: (cy - rect.top - state.view.y) / state.view.zoom };
+}
+function viewCenter() {
+  const rect = $("canvas").getBoundingClientRect();
+  return { x: (rect.width / 2 - state.view.x) / state.view.zoom - NW / 2, y: (rect.height / 2 - state.view.y) / state.view.zoom - NH / 2 };
+}
+
+function beginNodeDrag(node, event) {
+  if (event.button !== 0 || event.target.closest(".handle")) return;
+  event.preventDefault(); event.stopPropagation();
+  selectNode(node.id);
+  const startX = event.clientX, startY = event.clientY, origin = node.position;
+  state.liveDrag = { id: node.id, position: origin };
+  let latest = origin;
+  const move = (e) => {
+    latest = { x: origin.x + (e.clientX - startX) / state.view.zoom, y: origin.y + (e.clientY - startY) / state.view.zoom };
+    state.liveDrag = { id: node.id, position: latest };
+    const card = $("nodesLayer").querySelector(`.node[data-id="${node.id}"]`);
+    if (card) { card.style.left = latest.x + "px"; card.style.top = latest.y + "px"; }
+    const svg = $("edgesSvg");
+    [...svg.querySelectorAll(".edge-group")].forEach((el) => el.remove());
+    for (const edge of state.detail.edges) {
+      const s = nodeById(edge.source), t = nodeById(edge.target);
+      if (!s || !t) continue;
+      const sp = edge.source === node.id ? latest : s.position;
+      const tp = edge.target === node.id ? latest : t.position;
+      edgeGroup(edge, svg, sp, tp);
+    }
+  };
+  const up = async () => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+    state.liveDrag = null;
+    if (latest !== origin) {
+      try { await api(postUrl("position"), { nodeId: node.id, x: latest.x, y: latest.y }); } catch (e) { setStatus(e.message); }
+      await refresh();
+    }
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+}
+
+function beginConnect(node, event) {
+  if (event.button !== 0) return;
+  event.preventDefault(); event.stopPropagation();
+  state.conn = { source: node.id, end: screenToWorld(event.clientX, event.clientY), hover: null };
+  const move = (e) => {
+    state.conn.end = screenToWorld(e.clientX, e.clientY);
+    state.conn.hover = document.elementFromPoint(e.clientX, e.clientY)?.closest(".node")?.dataset?.id ?? null;
+    render();
+  };
+  const up = async (e) => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+    const target = document.elementFromPoint(e.clientX, e.clientY)?.closest(".node")?.dataset?.id ?? null;
+    const source = state.conn.source;
+    state.conn = null;
+    render();
+    if (!target || target === source) return;
+    await connect(source, target);
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+}
+
+async function connect(source, target, branch) {
+  try {
+    const result = await api(postUrl("edge-add"), branch ? { source, target, branch } : { source, target });
+    if (result.ok === false && result.code === "choose-branch") {
+      chooseBranch(result.available, (picked) => connect(source, target, picked));
+      return;
+    }
+    setStatus(T.edgeAdded); await refresh();
+  } catch (e) { setStatus(e.message); }
+}
+
+function dialogBase(html) {
+  const bg = document.createElement("div");
+  bg.className = "dialog-bg";
+  bg.innerHTML = `<div class="dialog" role="dialog">${html}</div>`;
+  document.body.append(bg);
+  bg.addEventListener("pointerdown", (e) => { if (e.target === bg) bg.remove(); });
+  return bg;
+}
+
+function chooseBranch(available, onPick) {
+  const bg = dialogBase(`<h3>${T.branchTitle}</h3><p>${T.branchIntro}</p>
+    <div class="branch-grid">${["true", "false"].map((b) => `<button data-b="${b}" ${available.includes(b) ? "" : "disabled"}>${T.branch[b]}</button>`).join("")}</div>
+    <div class="actions"><button class="btn" data-x>${T.cancel}</button></div>`);
+  bg.querySelector("[data-x]").onclick = () => bg.remove();
+  for (const btn of bg.querySelectorAll("[data-b]")) btn.onclick = () => { bg.remove(); onPick(btn.dataset.b); };
+}
+
+function chooseGate(onPick) {
+  const bg = dialogBase(`<h3>${T.gateTitle}</h3><p>${T.gateIntro}</p>
+    <div class="gate-grid">${GATES.map(([g, name, desc]) => `<button class="gate-choice" data-g="${g}"><strong>${name}</strong><span>${desc}</span></button>`).join("")}</div>
+    <div class="actions"><button class="btn" data-x>${T.cancel}</button></div>`);
+  bg.querySelector("[data-x]").onclick = () => bg.remove();
+  for (const btn of bg.querySelectorAll("[data-g]")) btn.onclick = () => { bg.remove(); onPick(btn.dataset.g); };
+}
+
+/* ---------- 画布平移缩放 ---------- */
+const canvas = $("canvas");
+canvas.addEventListener("pointerdown", (event) => {
+  if (event.button !== 0 || event.target.closest(".node,.controls,.inspector,.dialog-bg,.eval-panel,.pet-card")) return;
+  event.preventDefault();
+  const startX = event.clientX, startY = event.clientY, origin = { ...state.view };
+  canvas.classList.add("panning");
+  let moved = false;
+  const move = (e) => {
+    const dx = e.clientX - startX, dy = e.clientY - startY;
+    if (Math.abs(dx) > 2 || Math.abs(dy) > 2) moved = true;
+    state.view = { ...origin, x: origin.x + dx, y: origin.y + dy };
+    applyView();
+  };
+  const up = () => {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", up);
+    canvas.classList.remove("panning");
+    if (!moved) { state.selected = null; state.selectedEdge = null; render(); }
+  };
+  window.addEventListener("pointermove", move);
+  window.addEventListener("pointerup", up);
+});
+canvas.addEventListener("wheel", (event) => {
+  event.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const cx = event.clientX - rect.left, cy = event.clientY - rect.top;
+  if (event.ctrlKey || event.metaKey) {
+    const zoom = Math.min(2.5, Math.max(0.4, state.view.zoom * Math.exp(-event.deltaY * 0.0012)));
+    state.view = {
+      zoom,
+      x: cx - (cx - state.view.x) * (zoom / state.view.zoom),
+      y: cy - (cy - state.view.y) * (zoom / state.view.zoom)
+    };
+  } else {
+    state.view = { ...state.view, x: state.view.x - (event.deltaX || 0), y: state.view.y - (event.deltaY || 0) };
+  }
+  applyView();
+}, { passive: false });
+$("zoomIn").onclick = () => zoomCenter(1.2);
+$("zoomOut").onclick = () => zoomCenter(1 / 1.2);
+$("fitView").onclick = () => fitView();
+function zoomCenter(factor) {
+  const rect = canvas.getBoundingClientRect();
+  const cx = rect.width / 2, cy = rect.height / 2;
+  const zoom = Math.min(2.5, Math.max(0.4, state.view.zoom * factor));
+  state.view = { zoom, x: cx - (cx - state.view.x) * (zoom / state.view.zoom), y: cy - (cy - state.view.y) * (zoom / state.view.zoom) };
+  applyView();
+}
+function fitView() {
+  const d = state.detail;
+  if (!d || d.nodes.length === 0) return;
+  const rect = canvas.getBoundingClientRect();
+  const minX = Math.min(...d.nodes.map((n) => n.position.x));
+  const minY = Math.min(...d.nodes.map((n) => n.position.y));
+  const maxX = Math.max(...d.nodes.map((n) => n.position.x + NW));
+  const maxY = Math.max(...d.nodes.map((n) => n.position.y + NH));
+  const w = Math.max(1, maxX - minX), h = Math.max(1, maxY - minY);
+  const padding = Math.max(36, Math.min(rect.width, rect.height) * 0.16);
+  const zoom = Math.min(1.15, Math.max(0.4, Math.min((rect.width - padding * 2) / w, (rect.height - padding * 2) / h)));
+  state.view = { zoom, x: (rect.width - w * zoom) / 2 - minX * zoom, y: (rect.height - h * zoom) / 2 - minY * zoom };
+  applyView();
+}
+
+/* ---------- 工具栏 ---------- */
+$("flowSelect").addEventListener("change", async (e) => {
+  state.id = e.target.value; state.selected = null; state.selectedEdge = null;
+  await loadDetail(); fitView(); render();
+});
+$("btnValidate").onclick = async () => {
+  if (!state.id) return;
+  try {
+    const result = await api(`/api/flow/${encodeURIComponent(state.id)}/validate`);
+    setStatus(result.ok ? `${T.validateOk}${result.order.join(" → ")}` : `${T.validateBad}${result.issues.join("；")}`);
+  } catch (e) { setStatus(e.message); }
+};
+$("btnEvaluate").onclick = () => $("evalPanel").classList.toggle("open");
+$("evalClose").onclick = () => $("evalPanel").classList.remove("open");
+$("evalRun").onclick = async () => {
+  try {
+    const values = JSON.parse($("evalValues").value || "{}");
+    const result = await api(`/api/flow/${encodeURIComponent(state.id)}/evaluate?values=${encodeURIComponent(JSON.stringify(values))}`);
+    $("evalOut").textContent = JSON.stringify(result, null, 2);
+  } catch (e) { $("evalOut").textContent = String(e.message); }
+};
+$("btnLayout").onclick = async () => {
+  try { const r = await api(postUrl("layout"), {}); if (r.ok === false) throw new Error(r.issues?.join("；")); await refresh(); fitView(); }
+  catch (e) { setStatus(e.message); }
+};
+for (const btn of document.querySelectorAll(".addbar [data-kind]")) btn.addEventListener("click", () => {
+  const kind = btn.dataset.kind;
+  const center = viewCenter();
+  if (kind === "condition") { chooseGate(async (gate) => addNode(kind, center, gate)); return; }
+  addNode(kind, center);
+});
+async function addNode(kind, center, gateType) {
+  const cascade = (state.detail?.nodes.length ?? 0) % 4;
+  try {
+    await api(postUrl("node-add"), { kind, gateType, x: center.x + cascade * 26, y: center.y + cascade * 26 });
+    setStatus(T.nodeAdded); await refresh();
+  } catch (e) { setStatus(e.message); }
+}
+window.addEventListener("keydown", (event) => {
+  const tag = event.target?.tagName?.toLowerCase();
+  if (tag === "input" || tag === "textarea" || tag === "select") return;
+  if (event.key === "Escape") { state.selected = null; state.selectedEdge = null; render(); }
+  if (event.key === "Delete" || event.key === "Backspace") {
+    if (state.selectedEdge) {
+      event.preventDefault();
+      api(postUrl("edge-delete"), { edgeId: state.selectedEdge }).then(refresh).catch((e) => setStatus(e.message));
+    } else if (state.selected) {
+      event.preventDefault();
+      const node = nodeById(state.selected);
+      if (node && confirm(`${T.deleteNode}: ${node.label}?`)) {
+        api(postUrl("node-delete"), { nodeId: state.selected }).then(() => { state.selected = null; refresh(); }).catch((e) => setStatus(e.message));
+      }
+    }
+  }
+});
+
+/* ---------- 数据加载与实时同步 ---------- */
+function postUrl(action) { return `/api/flow/${encodeURIComponent(state.id)}/${action}`; }
+async function refresh() { await loadList(); await loadDetail(); render(); }
+async function loadList() {
+  try { state.flows = await api("/api/flows"); } catch { /* 下轮重试 */ }
+  if (!state.id && state.flows.length > 0) state.id = state.flows[0].id;
+}
+async function loadDetail() {
+  if (!state.id) { state.detail = null; return; }
+  try { state.detail = await api(`/api/flow/${encodeURIComponent(state.id)}`); }
+  catch (e) { state.detail = null; state.id = null; }
+}
+const es = new EventSource("/api/events");
+es.addEventListener("change", async () => {
+  const previousId = state.id;
+  await loadList();
+  if (!previousId && state.id) { await loadDetail(); fitView(); }
+  else await loadDetail();
+  render();
+});
+
+(async function init() {
+  await refresh();
+  fitView();
+  setStatus(T.ready);
+  if (window.petAPI) {
+    $("btnCollapse").style.display = "inline-block";
+    $("btnCollapse").addEventListener("click", () => window.petAPI.collapse());
+  }
+  if (petMode) {
+    $("petCard").addEventListener("click", () => {
+      if (window.petAPI?.expand) window.petAPI.expand();
+      else location.href = location.pathname;
+    });
+  }
+})();
+</script>
+</body>
+</html>

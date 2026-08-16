@@ -1,0 +1,46 @@
+{
+  "name": "agent-flow",
+  "version": "0.1.0",
+  "description": "Markdown-first step workflows with deterministic Boolean gates for any coding agent (ZCode / Claude Code / Codex CLI).",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kanghelyu/agent-flow.git"
+  },
+  "homepage": "https://github.com/kanghelyu/agent-flow#readme",
+  "bugs": "https://github.com/kanghelyu/agent-flow/issues",
+  "keywords": [
+    "agent",
+    "workflow",
+    "markdown",
+    "cli",
+    "coding-agent",
+    "claude-code",
+    "codex",
+    "zcode",
+    "logic-gates",
+    "visualization",
+    "desktop-pet"
+  ],
+  "bin": {
+    "af": "bin/af.mjs"
+  },
+  "scripts": {
+    "test": "node --test test/cli.test.mjs test/studio.test.mjs",
+    "vendor": "DFLOW_SOURCE_ROOT=../dsh-deepseek-flow node scripts/vendor.mjs"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "skills",
+    "scripts",
+    "studio",
+    "test",
+    "install.sh",
+    "install.ps1",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE"
+  ]
+}
