@@ -55,7 +55,7 @@ const HELP = `af — AgentFlow：给任何编码代理用的 Markdown 工作流 
 
 用法：af <命令> [参数]
 
-  create <name> [--desc "目标"] [--steps "a;b;c"] [--json flow.json]  新建工作流
+  create <name> [--desc "目标"] [--steps "a;b;c"] [--json flow.json] [--lang zh|en]  新建工作流（--json 导入时可指定文档语言）
   list [--json]                    列出全部工作流与进度
   read <id> [--json]               输出总纲、每步 STEP.md 与逻辑契约
   validate <id>                    结构/连通/门语义校验（确定性，不调用模型）
@@ -150,7 +150,7 @@ async function commandCreate(positional, options) {
   );
   // 先校验再落盘：导入含环/悬空边的 JSON 时不在磁盘留下打不开的坏工作流。
   const result = validateFlow(normalized);
-  const documented = await writeFlowDocuments(normalized);
+  const documented = await writeFlowDocuments(normalized, { lang: options.lang === "en" ? "en" : "zh" });
   await saveFlow(dir, documented);
   await saveState(dir, compileExecution(documented, normalizeExecutionState(documented, {})).state);
   ok(`已创建工作流 ${id}（${documented.nodes.length} 个节点，${documented.edges.length} 条箭头）`);

@@ -197,7 +197,7 @@ body.pet[data-pet-size="small"] .pet-card{grid-template-columns:46px minmax(0,1f
   <select id="flowSelect"></select>
   <span class="progress"><span class="bar"><i id="progressBar"></i></span><span id="progressText">–</span></span>
   <span class="sync-state" id="syncStatus">–</span>
-  <button class="btn primary" id="btnNewFlow">+ 新建</button>
+  <button class="btn primary" id="btnNewFlow" data-i18n="newFlow">+ 新建</button>
   <button class="btn danger" id="btnDeleteFlow" data-i18n="deleteFlow">删除工作流</button>
   <button class="btn" id="btnValidate" data-i18n="validate">校验</button>
   <button class="btn" id="btnEvaluate" data-i18n="evaluate">求值</button>
@@ -211,11 +211,11 @@ body.pet[data-pet-size="small"] .pet-card{grid-template-columns:46px minmax(0,1f
   <aside class="docrail" id="docrail">
     <div class="docrail-head">
       <span class="docrail-title" data-i18n="documents">文档</span>
-      <button class="docrail-toggle" id="btnToggleDocrail" title="折叠/展开">‹</button>
+      <button class="docrail-toggle" id="btnToggleDocrail" data-i18n-title="collapseExpand">‹</button>
     </div>
     <div class="docrail-list" id="docrailList"></div>
   </aside>
-  <div class="splitter" id="leftSplitter" role="separator" aria-label="调整左侧面板"></div>
+  <div class="splitter" id="leftSplitter" role="separator" aria-label="Resize left panel"></div>
   <div class="canvas" id="canvas">
     <div class="stage" id="stage">
       <svg class="edges" id="edgesSvg" width="1" height="1" aria-label="arrows"><defs>
@@ -282,7 +282,12 @@ const petMode = params.get("mode") === "pet";
 const COPY = {
   zh: {
     validate: "校验", evaluate: "求值", layout: "整理布局", close: "关闭",
-    evalTitle: "逻辑门求值", evalRun: "计算", newNode: "新建",
+    evalTitle: "逻辑门求值", evalRun: "计算", newNode: "新建", newFlow: "+ 新建",
+    collapseExpand: "折叠/展开", noWorkflowSelected: "请先选择一个工作流",
+    opFailed: "操作失败", ok: "确定",
+    emptyNoFlows: "<strong>🚀 AgentFlow</strong>还没有工作流。<br>点击上方「<strong>+ 新建</strong>」按钮创建第一个工作流，<br>或使用终端运行 <code>af create</code>。",
+    emptyPickFlow: "<strong>🔍 选择一个工作流</strong>从顶部下拉列表选择一个工作流查看。",
+    emptyShort: "还没有工作流 — 点击顶部「+ 新建」或使用终端 af create",
     kCondition: "条件", kMerge: "合并", kOutput: "输出",
     addHint: "从右侧圆点拖到目标框连线；Delete 删除选中",
     empty: "还没有工作流。<br>回到终端让 Agent 运行 <code>af create</code>，或用 <code>af create --json flow.json</code> 导入。",
@@ -324,7 +329,12 @@ const COPY = {
   },
   en: {
     validate: "Validate", evaluate: "Evaluate", layout: "Tidy layout", close: "Close",
-    evalTitle: "Gate evaluation", evalRun: "Run", newNode: "New",
+    evalTitle: "Gate evaluation", evalRun: "Run", newNode: "New", newFlow: "+ New",
+    collapseExpand: "Collapse / expand", noWorkflowSelected: "Select a workflow first",
+    opFailed: "Operation failed", ok: "OK",
+    emptyNoFlows: "<strong>🚀 AgentFlow</strong>No workflows yet.<br>Click <strong>+ New</strong> above to create the first one,<br>or run <code>af create</code> in the terminal.",
+    emptyPickFlow: "<strong>🔍 Select a workflow</strong>Pick one from the dropdown at the top.",
+    emptyShort: "No workflows — click + New above or run af create in the terminal",
     kCondition: "Condition", kMerge: "Merge", kOutput: "Output",
     addHint: "Drag from the right dot to another box to connect; Delete removes the selection",
     empty: "No workflows yet.<br>Ask your agent to run <code>af create</code> in the terminal, or import with <code>af create --json flow.json</code>.",
@@ -379,6 +389,7 @@ if (THEME === "dark" || THEME === "light") document.documentElement.dataset.them
 function applyI18n() {
   for (const el of document.querySelectorAll("[data-i18n]")) el.textContent = T[el.dataset.i18n] ?? el.textContent;
   for (const el of document.querySelectorAll("[data-i18n-html]")) el.innerHTML = T[el.dataset.i18nHtml] ?? el.innerHTML;
+  for (const el of document.querySelectorAll("[data-i18n-title]")) el.title = T[el.dataset.i18nTitle] ?? el.title;
   $("btnLang").textContent = LANG === "zh" ? "EN" : "中文";
   $("btnCollapse").title = T.close;
 }
@@ -431,8 +442,8 @@ async function api(path, options) {
 const setStatus = (text) => { $("status").textContent = text; };
 // 错误弹窗：嵌入式 webview 里 status 一行小字用户根本看不见。
 function showError(message, title) {
-  const bg = dialogBase(`<h3>${escapeHtml(title ?? "操作失败")}</h3><p style="white-space:pre-wrap">${escapeHtml(message)}</p>
-    <div class="actions"><button class="btn primary" data-x>确定</button></div>`);
+  const bg = dialogBase(`<h3>${escapeHtml(title ?? T.opFailed)}</h3><p style="white-space:pre-wrap">${escapeHtml(message)}</p>
+    <div class="actions"><button class="btn primary" data-x>${escapeHtml(T.ok)}</button></div>`);
   bg.querySelector("[data-x]").onclick = () => bg.remove();
 }
 function renderSync() {
@@ -595,8 +606,8 @@ function render() {
     // 空状态隐藏右侧检查器（此时只有占位内容），提示卡片才能在整个画布居中。
     $("inspector").style.display = "none";
     const msg = $("emptyMsg");
-    if (!state.flows || state.flows.length === 0) msg.innerHTML = '<strong>🚀 AgentFlow</strong>还没有工作流。<br>点击上方「<strong>+ 新建</strong>」按钮创建第一个工作流，<br>或使用终端运行 <code>af create</code>。';
-    else msg.innerHTML = '<strong>🔍 选择一个工作流</strong>从顶部下拉列表选择一个工作流查看。';
+    if (!state.flows || state.flows.length === 0) msg.innerHTML = T.emptyNoFlows;
+    else msg.innerHTML = T.emptyPickFlow;
     renderSync(); updatePet(); return;
   }
   $("emptyState").style.display = "none";
@@ -1004,7 +1015,7 @@ function updateAddbar() {
   for (const btn of document.querySelectorAll(".addbar [data-kind]")) btn.disabled = !hasFlow;
 }
 for (const btn of document.querySelectorAll(".addbar [data-kind]")) btn.addEventListener("click", () => {
-  if (!state.id) { setStatus("请先选择一个工作流"); return; }
+  if (!state.id) { setStatus(T.noWorkflowSelected); return; }
   const kind = btn.dataset.kind;
   const center = viewCenter();
   if (kind === "condition") { chooseGate(async (gate) => addNode(kind, center, gate)); return; }
@@ -1114,7 +1125,7 @@ es.addEventListener("change", async () => {
 (async function init() {
   await refresh();
   if (state.id) fitView();
-  setStatus(state.id ? T.ready : "还没有工作流 — 点击顶部「+ 新建」或使用终端 af create");
+  setStatus(state.id ? T.ready : T.emptyShort);
   if (window.petAPI) {
     $("btnCollapse").style.display = "inline-block";
     $("btnCollapse").addEventListener("click", () => window.petAPI.collapse());
