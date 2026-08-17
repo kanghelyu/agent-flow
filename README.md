@@ -14,6 +14,23 @@
 
 <p align="center"><strong>English</strong> · <a href="README.zh-CN.md">简体中文</a></p>
 
+## Recommended install: give this repository to your agent
+
+The best way to install AgentFlow is to **point your coding agent at this repository** (or paste this URL into the chat) and ask it to run the installer itself:
+
+```text
+https://github.com/kanghelyu/agent-flow
+```
+
+AgentFlow is a **harness-agnostic plugin**: the same repository works with ZCode, Claude Code, Codex CLI, Cursor, Windsurf, or any agent that can run a shell command — on macOS, Windows, or Linux. The agent will:
+
+1. clone or fetch this repository;
+2. run `install.sh` (macOS/Linux) or `install.ps1` (Windows);
+3. drop the `agent-flow` skill into its own skills directory (and the other agents' directories it can find);
+4. verify with `af --version` and `af doctor`.
+
+No plugin marketplace, no harness-specific packaging, no manual copy-paste of skill files needed. If your agent can run a terminal command, it can install AgentFlow.
+
 AgentFlow turns long agent sessions into step-by-step Markdown workflows. Each workflow is a `WORKFLOW.md` master document plus one `STEP.md` workspace per step; `flow.json` is derived metadata and `state.json` tracks execution. It works with **ZCode, Claude Code, Codex CLI, or a plain terminal** — no plugin host required.
 
 It is deliberately an editor-plus-runtime: AgentFlow validates topology, evaluates Boolean gates deterministically, and keeps execution bookkeeping — the Agent itself performs the actual work in the current session.

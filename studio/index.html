@@ -378,9 +378,21 @@ const COPY = {
 let LANG = params.get("lang") === "en" ? "en" : params.get("lang") === "zh" ? "zh"
   : (String(navigator.language ?? "en").toLowerCase().startsWith("zh") ? "zh" : "en");
 try { LANG = localStorage.getItem("af-lang") ?? LANG; } catch {}
-const T = COPY[LANG];
-const KIND_LABELS = T.kinds;
-const GATES = T.gates;
+// 记住当前选中的工作流：语言切换只换文案，不换工作流。
+let rememberedFlowId = null;
+try { rememberedFlowId = localStorage.getItem("af-flow") || null; } catch {}
+let T = COPY[LANG];
+let KIND_LABELS = T.kinds;
+let GATES = T.gates;
+function useLanguage(lang) {
+  LANG = lang;
+  T = COPY[LANG];
+  KIND_LABELS = T.kinds;
+  GATES = T.gates;
+  try { localStorage.setItem("af-lang", LANG); } catch {}
+  applyI18n();
+  if (!petMode) { refresh(); }
+}
 
 // 主题：?theme=dark|light 或跟随系统；切换写入 localStorage。
 let THEME = params.get("theme");
@@ -404,11 +416,7 @@ $("btnTheme").addEventListener("click", () => {
   try { localStorage.setItem("af-theme", next); } catch {}
 });
 $("btnLang").addEventListener("click", () => {
-  const next = LANG === "zh" ? "en" : "zh";
-  try { localStorage.setItem("af-lang", next); } catch {}
-  const query = new URLSearchParams(location.search);
-  query.set("lang", next);
-  location.search = query.toString();
+  useLanguage(LANG === "zh" ? "en" : "zh");
 });
 
 const state = {
@@ -984,6 +992,8 @@ function fitView() {
 /* ---------- 工具栏 ---------- */
 $("flowSelect").addEventListener("change", async (e) => {
   state.id = e.target.value; state.selected = null; state.selectedEdge = null;
+  rememberedFlowId = state.id;
+  try { localStorage.setItem("af-flow", state.id); } catch {}
   await loadDetail(); fitView(); render();
 });
 $("btnValidate").onclick = async () => {
@@ -1098,10 +1108,16 @@ async function refresh() { await loadList(); await loadDetail(); render(); }
 async function loadList() {
   try { state.flows = await api("/api/flows"); } catch { /* 下轮重试 */ }
   if (!state.id || !state.flows.some((flow) => flow.id === state.id)) {
-    state.id = state.flows[0]?.id ?? null;
+    state.id = rememberedFlowId && state.flows.some((flow) => flow.id === rememberedFlowId)
+      ? rememberedFlowId
+      : (state.flows[0]?.id ?? null);
     state.selected = null;
     state.selectedEdge = null;
     state.dirtySel = null;
+  }
+  if (state.id) {
+    rememberedFlowId = state.id;
+    try { localStorage.setItem("af-flow", state.id); } catch {}
   }
 }
 async function loadDetail() {
