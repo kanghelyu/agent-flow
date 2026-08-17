@@ -36,13 +36,13 @@ AgentFlow turns long agent sessions into step-by-step Markdown workflows. Each w
 It is deliberately an editor-plus-runtime: AgentFlow validates topology, evaluates Boolean gates deterministically, and keeps execution bookkeeping — the Agent itself performs the actual work in the current session.
 
 <p align="center">
-  <img src="docs/shots/en-dark.png" width="49%" alt="AgentFlow Studio in dark mode">
-  <img src="docs/shots/en-light.png" width="49%" alt="AgentFlow Studio in light mode">
+  <img src="docs/shots/engdark.png" width="49%" alt="AgentFlow Studio in dark mode">
+  <img src="docs/shots/englight.png" width="49%" alt="AgentFlow Studio in light mode">
 </p>
 
 <p align="center">
-  <img src="docs/shots/en-logic.png" width="49%" alt="Deterministic gate evaluation">
-  <img src="docs/shots/pet-dark.png" width="18%" alt="AgentFlow desktop pet">
+  <img src="docs/shots/englogic.png" width="49%" alt="Deterministic gate evaluation">
+  <img src="docs/shots/peticon.png" width="18%" alt="AgentFlow desktop pet">
 </p>
 
 ## What it gives you
