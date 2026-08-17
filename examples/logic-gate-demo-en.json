@@ -1,0 +1,119 @@
+{
+  "id": "logic-gate-demo-en",
+  "name": "Logic Gate Demo",
+  "description": "A test workflow with IF/ELSE gates, an explicit control loop, and a merge",
+  "nodes": [
+    {
+      "id": "input",
+      "kind": "input",
+      "position": { "x": 70, "y": 90 },
+      "data": {
+        "label": "Input",
+        "workspace": "01-input",
+        "instructions": "# Input\n\nProcess the \u201cInput\u201d stage and hand the result to the next step."
+      }
+    },
+    {
+      "id": "check",
+      "kind": "agent",
+      "position": { "x": 315, "y": 90 },
+      "data": {
+        "label": "Check test results",
+        "prompt": "Run the tests and output JSON: {\"passed\": true}",
+        "workspace": "02-check-test-results"
+      }
+    },
+    {
+      "id": "gate",
+      "kind": "condition",
+      "position": { "x": 1295, "y": 90 },
+      "data": {
+        "label": "Tests pass?",
+        "gateType": "ifElse",
+        "predicate": "truthy",
+        "valuePath": "$.passed",
+        "workspace": "03-tests-pass",
+        "instructions": "# Tests pass?\n\nProcess the \u201cTests pass?\u201d stage and hand the result to the next step."
+      }
+    },
+    {
+      "id": "publish",
+      "kind": "agent",
+      "position": { "x": 1540, "y": 90 },
+      "data": {
+        "label": "Publish",
+        "prompt": "Build the release package.",
+        "workspace": "04-publish"
+      }
+    },
+    {
+      "id": "fix",
+      "kind": "agent",
+      "position": { "x": 805, "y": 90 },
+      "data": {
+        "label": "Fix issues",
+        "prompt": "Analyze the failure and fix it.",
+        "workspace": "05-fix-issues"
+      }
+    },
+    {
+      "id": "output",
+      "kind": "output",
+      "position": { "x": 2030, "y": 90 },
+      "data": {
+        "label": "Deliver",
+        "workspace": "06-deliver",
+        "instructions": "# Deliver\n\nProcess the \u201cDeliver\u201d stage and hand the result to the next step."
+      }
+    },
+    {
+      "id": "audit",
+      "kind": "agent",
+      "position": { "x": 315, "y": 250 },
+      "data": {
+        "label": "Security audit",
+        "prompt": "Run a security scan and output JSON: {\"secure\": true}",
+        "workspace": "07-security-audit"
+      }
+    },
+    {
+      "id": "sec-gate",
+      "kind": "condition",
+      "position": { "x": 560, "y": 90 },
+      "data": {
+        "label": "Security passes?",
+        "gateType": "ifElse",
+        "predicate": "truthy",
+        "valuePath": "$.secure",
+        "workspace": "08-security-passes",
+        "instructions": "# Security passes?\n\nProcess the \u201cSecurity passes?\u201d stage and hand the result to the next step."
+      }
+    },
+    {
+      "id": "merge",
+      "kind": "merge",
+      "position": { "x": 805, "y": 250 },
+      "data": {
+        "label": "Merge",
+        "workspace": "09-merge",
+        "instructions": "# Merge\n\nProcess the \u201cMerge\u201d stage and hand the result to the next step."
+      }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": "input", "target": "check" },
+    { "id": "e2", "source": "check", "target": "gate" },
+    { "id": "e3-true", "source": "gate", "target": "publish", "sourceHandle": "true", "label": "Yes" },
+    { "id": "e3-false", "source": "gate", "target": "fix", "sourceHandle": "false", "label": "No" },
+    { "id": "e4", "source": "publish", "target": "merge" },
+    { "id": "e5", "source": "fix", "target": "check" },
+    { "id": "e6", "source": "input", "target": "audit" },
+    { "id": "e7", "source": "audit", "target": "sec-gate" },
+    { "id": "e8-true", "source": "sec-gate", "target": "merge", "sourceHandle": "true", "label": "Pass" },
+    { "id": "e8-false", "source": "sec-gate", "target": "fix", "sourceHandle": "false", "label": "Fail" },
+    { "id": "e9", "source": "merge", "target": "output" }
+  ],
+  "inputs": ["input"],
+  "outputs": ["output"],
+  "workflowDoc": "WORKFLOW.md"
+}
