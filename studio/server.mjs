@@ -3,15 +3,16 @@
 // 所有拓扑变更（加删节点/箭头/门）都先在内存里跑 validateFlow，通过才落盘——
 // 与 dsh 版「写入前拦截」同构，只是没有 AI 审查环节（agent-flow 的审查者就是 Agent 本身）。
 import { createServer } from "node:http";
-import { readdir, readFile, stat, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, readdir, readFile, rename, stat, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import {
   conditionGateType,
   gateBranchForEdge,
   normalizeGateType
 } from "../lib/condition-gates.js";
-import { logicExecutionContract, evaluateFlowLogic } from "../lib/logic-semantics.js";
+import { gateRule, logicExecutionContract, evaluateFlowLogic } from "../lib/logic-semantics.js";
 import { validateFlow } from "../lib/flow-validation.js";
 import { normalizeDocumentFlow, writeFlowDocuments } from "../lib/document-workflow.js";
 import {
@@ -20,10 +21,20 @@ import {
   loadStateDir,
   readJsonIfPresent,
   readySteps,
+  doneIdsOf,
   saveFlow,
   saveState,
   stepPath
 } from "../lib/flow-service.mjs";
+import {
+  compileExecution,
+  completeNode,
+  executionProgress,
+  flowRevision,
+  isExecutableNode,
+  reconcileAfterFlowChange,
+  undoNode
+} from "../lib/execution-runtime.mjs";
 
 const BODY_LIMIT = 2 * 1024 * 1024;
 const KIND_LABELS = {
@@ -60,14 +71,30 @@ function safeId(raw) {
 }
 
 function flowSummary(id, stored, state) {
-  const total = (stored.nodes ?? []).filter((node) => node.kind !== "input").length;
+  const compiled = compileExecution({ ...stored, revision: flowRevision(stored) }, state);
+  const progress = executionProgress(stored, compiled.state);
+  let valid = true;
+  let issues = [];
+  let cyclic = false;
+  try {
+    const result = validateFlow(stored);
+    cyclic = result.cyclic === true;
+  } catch (error) {
+    valid = false;
+    issues = error?.issues ?? [String(error?.message ?? error)];
+  }
   return {
     id,
     name: stored.name ?? id,
+    revision: flowRevision(stored),
     nodes: (stored.nodes ?? []).length,
     edges: (stored.edges ?? []).length,
-    done: (state.done ?? []).length,
-    total,
+    done: progress.done,
+    total: progress.total,
+    valid,
+    cyclic,
+    issues,
+    synced: compiled.state.flowRevision === flowRevision(stored),
     updatedAt: stored.updatedAt ?? null
   };
 }
@@ -90,38 +117,69 @@ async function listFlows(root) {
 }
 
 function flowDetail({ flow, state }) {
-  const { ready, blocked } = readySteps(flow, state);
-  const readyIds = new Set(ready.map((entry) => entry.nodeId));
-  const blockedMap = Object.fromEntries(blocked);
+  const compiled = readySteps(flow, state);
+  const runtime = compiled.state;
+  const doneIds = doneIdsOf(flow, runtime);
+  const doneSet = new Set(doneIds);
+  const readyIds = new Set(compiled.ready.map((entry) => entry.nodeId));
+  const blockedMap = Object.fromEntries(compiled.blocked);
   const contract = logicExecutionContract(flow);
   const contractById = new Map(contract.conditions.map((condition) => [condition.nodeId, condition]));
+  const progress = executionProgress(flow, runtime);
+  let executable = true;
+  let issues = [];
+  let cyclic = false;
+  try {
+    const result = validateFlow(flow);
+    cyclic = result.cyclic === true;
+  } catch (error) { executable = false; issues = error?.issues ?? [String(error?.message ?? error)]; }
   return {
     id: flow.id,
     name: flow.name,
     description: flow.description ?? "",
+    revision: flowRevision(flow),
     workflowDoc: flow.workflowDoc ?? "WORKFLOW.md",
     workflowContent: flow.workflowContent ?? "",
     docRoot: flow.docRoot,
-    progress: { done: state.done.length, total: flow.nodes.filter((node) => node.kind !== "input").length },
+    progress,
+    execution: {
+      flowRevision: flowRevision(flow),
+      stateRevision: runtime.flowRevision,
+      synced: runtime.flowRevision === flowRevision(flow),
+      executable,
+      cyclic,
+      issues,
+      skipped: runtime.skipped,
+      gates: runtime.gates,
+      edgeStates: runtime.edgeStates
+    },
     logicContract: contract,
-    nodes: flow.nodes.map((node) => ({
-      id: node.id,
-      kind: node.kind,
-      label: node.data?.label ?? node.id,
-      content: node.data?.prompt ?? node.data?.instructions ?? "",
-      position: node.position ?? { x: 120, y: 120 },
-      path: stepPath(flow, node.id),
-      done: state.done.includes(node.id),
-      ready: readyIds.has(node.id),
-      blockedBy: blockedMap[node.id] ?? null,
-      ...(node.kind === "condition"
-        ? {
-            gateType: conditionGateType(node, flow.edges.filter((edge) => edge.source === node.id)),
-            formula: contractById.get(node.id)?.formula ?? "",
-            predicate: node.data?.predicate ?? "truthy"
-          }
-        : {})
-    })),
+    nodes: flow.nodes.map((node) => {
+      const runtimeStatus = compiled.nodeStatus.get(node.id)?.status ?? (node.kind === "input" ? "resolved" : "idle");
+      return {
+        id: node.id,
+        kind: node.kind,
+        label: node.data?.label ?? node.id,
+        content: node.data?.prompt ?? node.data?.instructions ?? "",
+        position: node.position ?? { x: 120, y: 120 },
+        path: stepPath(flow, node.id),
+        done: doneSet.has(node.id),
+        ready: readyIds.has(node.id),
+        skipped: runtime.skipped.includes(node.id),
+        runtimeStatus,
+        blockedBy: blockedMap[node.id] ?? null,
+        result: runtime.results?.[node.id],
+        ...(node.kind === "condition"
+          ? {
+              gateType: conditionGateType(node, flow.edges.filter((edge) => edge.source === node.id)),
+              formula: contractById.get(node.id)?.formula ?? "",
+              predicate: node.data?.predicate ?? "truthy",
+              valuePath: node.data?.valuePath ?? "",
+              gateState: runtime.gates?.[node.id] ?? null
+            }
+          : {})
+      };
+    }),
     edges: flow.edges.map((edge) => {
       const branch = gateBranchForEdge(edge);
       return {
@@ -129,6 +187,8 @@ function flowDetail({ flow, state }) {
         source: edge.source,
         target: edge.target,
         branch,
+        state: runtime.edgeStates?.[edge.id] ?? "pending",
+        value: compiled.edgeValues?.[edge.id],
         label: edge.label ?? (branch ? BRANCH_LABELS[branch] ?? branch : null)
       };
     })
@@ -146,27 +206,49 @@ function validateTopologyEditable(flow) {
     return { ok: true, levels: result.levels };
   } catch (error) {
     const issues = error?.issues ?? [String(error?.message ?? error)];
-    const hard = issues.filter((issue) => !/^unreachable nodes:/.test(issue));
+    const incompleteGateIssues = new Set();
+    for (const node of flow.nodes?.filter((candidate) => candidate?.kind === "condition") ?? []) {
+      const outgoing = flow.edges?.filter((edge) => edge.source === node.id) ?? [];
+      const gateType = conditionGateType(node, outgoing);
+      const rule = gateRule(gateType);
+      const inputCount = flow.edges?.filter((edge) => edge.target === node.id).length ?? 0;
+      if (inputCount < rule.minInputs) {
+        const expected = rule.maxInputs === rule.minInputs
+          ? `requires exactly ${rule.minInputs} incoming Boolean input(s); received ${inputCount}`
+          : `requires at least ${rule.minInputs} incoming Boolean inputs; received ${inputCount}`;
+        incompleteGateIssues.add(`condition ${node.id} (${gateType}) ${expected}`);
+      }
+    }
+    const hard = issues.filter((issue) =>
+      !/^unreachable nodes:/.test(issue) && !incompleteGateIssues.has(issue)
+    );
     if (hard.length > 0) return { ok: false, issues: hard };
     return { ok: true, levels: [] };
   }
 }
 
 /** 应用一次拓扑变更：改内存副本 → 校验 → 通过才写盘。失败原样返回 issues。 */
-async function mutateTopology(root, id, mutator) {
+async function mutateTopology(root, id, mutator, { bumpRevision = true } = {}) {
   const { dir, flow, state } = await loadFlow(root, id);
   const draft = structuredClone(flow);
   const patch = mutator(draft) ?? {};
   const verdict = validateTopologyEditable(draft);
   if (!verdict.ok) return { ok: false, issues: verdict.issues };
+  if (bumpRevision) draft.revision = flowRevision(flow) + 1;
+  else draft.revision = flowRevision(flow);
   const levels = verdict.levels;
-  const normalized = normalizeDocumentFlow(draft, { storageRoot: root, scope: "shared", docRoot: dir });
+  const normalized = normalizeDocumentFlow(draft, {
+    storageRoot: root, scope: "shared", docRoot: dir, previousFlow: flow
+  });
   const documented = await writeFlowDocuments(normalized);
   documented.updatedAt = new Date().toISOString();
   await saveFlow(dir, documented);
-  const detail = flowDetail({ flow: await loadFlow(root, id).then((loaded) => loaded.flow), state });
+  const reconciled = reconcileAfterFlowChange(flow, documented, state);
+  await saveState(dir, reconciled.state);
+  const loaded = await loadFlow(root, id);
+  const detail = flowDetail({ flow: loaded.flow, state: reconciled.state });
   void patch;
-  return { ok: true, detail, levels };
+  return { ok: true, detail, levels, revision: flowRevision(documented) };
 }
 
 function layoutPositions(nodes, edges) {
@@ -226,6 +308,7 @@ async function watchSignature(root) {
 }
 
 export async function startStudioServer({ root, host = "127.0.0.1", port = 0 } = {}) {
+  root = resolve(root ?? process.env.AF_HOME ?? join(homedir(), ".agent-flow"));
   const indexHtml = await readFile(new URL("./index.html", import.meta.url), "utf8");
   const clients = new Set();
   let lastSignature = await watchSignature(root);
@@ -241,6 +324,26 @@ export async function startStudioServer({ root, host = "127.0.0.1", port = 0 } =
       }
       if (req.method === "GET" && url.pathname === "/api/flows") {
         sendJson(res, 200, await listFlows(root));
+        return;
+      }
+      if (req.method === "POST" && url.pathname === "/api/flows") {
+        const body = await readBody(req);
+        const name = String(body.name || "").trim() || "工作流";
+        const steps = Array.isArray(body.steps) && body.steps.length
+          ? body.steps.map((s) => String(s).trim()).filter(Boolean)
+          : ["第一步", "第二步", "第三步"];
+        const id = `${name.replace(/[^a-zA-Z0-9\u4e00-\u9fff_-]/g, "").slice(0, 24) || "flow"}-${Date.now().toString(36).slice(-4)}`;
+        const dir = flowDir(root, id);
+        const { createScaffoldFlow, normalizeDocumentFlow, writeFlowDocuments } = await import("../lib/document-workflow.js");
+        const flow = createScaffoldFlow({ name, steps: steps.map((label) => ({ label })) });
+        const normalized = normalizeDocumentFlow({ ...flow, id, docRoot: dir }, { storageRoot: root, scope: "shared" });
+        const documented = await writeFlowDocuments(normalized);
+        const { validateFlow } = await import("../lib/flow-validation.js");
+        validateFlow(documented);
+        documented.updatedAt = new Date().toISOString();
+        await saveFlow(dir, documented);
+        await saveState(dir, { done: [] });
+        sendJson(res, 201, { id: documented.id, name: documented.name });
         return;
       }
       if (req.method === "GET" && url.pathname === "/api/events") {
@@ -272,9 +375,9 @@ export async function startStudioServer({ root, host = "127.0.0.1", port = 0 } =
       }
       if (req.method === "GET" && action === "validate") {
         const { flow } = await loadFlow(root, id);
-        try {
+      try {
           const result = validateFlow(flow);
-          sendJson(res, 200, { ok: true, order: result.order, levels: result.levels });
+          sendJson(res, 200, { ok: true, cyclic: result.cyclic === true, order: result.order, levels: result.levels });
         } catch (error) {
           sendJson(res, 200, { ok: false, issues: error?.issues ?? [String(error?.message ?? error)] });
         }
@@ -302,22 +405,26 @@ export async function startStudioServer({ root, host = "127.0.0.1", port = 0 } =
       if (req.method === "POST" && (action === "done" || action === "undo")) {
         const { dir, flow, state } = await loadFlow(root, id);
         const nodeId = String(body.nodeId ?? "");
-        if (!flow.nodes.some((node) => node.id === nodeId)) {
+        const node = flow.nodes.find((candidate) => candidate.id === nodeId);
+        if (!node) {
           sendJson(res, 400, { error: `节点 ${nodeId} 不存在` });
           return;
         }
-        if (action === "done") {
-          if (!state.done.includes(nodeId)) state.done.push(nodeId);
-        } else {
-          state.done = state.done.filter((candidate) => candidate !== nodeId);
+        try {
+          const compiled = action === "done"
+            ? completeNode(flow, state, nodeId, { result: body.result, expectedRevision: body.revision })
+            : undoNode(flow, state, nodeId);
+          await saveState(dir, compiled.state);
+          sendJson(res, 200, flowDetail({ flow, state: compiled.state }));
+        } catch (error) {
+          const stale = error?.code === "STALE_WORKFLOW";
+          sendJson(res, stale ? 409 : 400, { code: error?.code, error: String(error?.message ?? error) });
         }
-        await saveState(dir, state);
-        sendJson(res, 200, flowDetail(await loadFlow(root, id)));
         return;
       }
 
       if (req.method === "POST" && action === "doc") {
-        const { dir, flow } = await loadFlow(root, id);
+        const { dir, flow, state } = await loadFlow(root, id);
         const nodeId = String(body.nodeId ?? "");
         const node = flow.nodes.find((candidate) => candidate.id === nodeId);
         if (!node) {
@@ -325,11 +432,18 @@ export async function startStudioServer({ root, host = "127.0.0.1", port = 0 } =
           return;
         }
         const key = node.kind === "agent" || node.kind === "mapAgent" ? "prompt" : "instructions";
-        node.data = { ...node.data, [key]: String(body.content ?? "") };
+        const nextContent = String(body.content ?? "");
+        const previousContent = String(node.data?.[key] ?? "");
+        node.data = { ...node.data, [key]: nextContent };
+        if (nextContent !== previousContent) flow.revision = flowRevision(flow) + 1;
         const documented = await writeFlowDocuments(flow);
         documented.updatedAt = new Date().toISOString();
         await saveFlow(dir, documented);
-        sendJson(res, 200, flowDetail(await loadFlow(root, id)));
+        const reconciled = nextContent !== previousContent
+          ? reconcileAfterFlowChange({ ...flow, revision: flowRevision(flow) - 1, nodes: flow.nodes.map((candidate) => candidate.id === nodeId ? { ...candidate, data: { ...candidate.data, [key]: previousContent } } : candidate) }, documented, state)
+          : compileExecution(documented, state);
+        await saveState(dir, reconciled.state);
+        sendJson(res, 200, flowDetail({ flow: documented, state: reconciled.state }));
         return;
       }
 
@@ -340,9 +454,15 @@ export async function startStudioServer({ root, host = "127.0.0.1", port = 0 } =
           sendJson(res, 400, { error: "节点不存在" });
           return;
         }
+        const x = Number(body.x);
+        const y = Number(body.y);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) {
+          sendJson(res, 400, { error: "节点坐标必须是有限数字" });
+          return;
+        }
         node.position = {
-          x: Math.max(0, Math.round(Number(body.x) || 0)),
-          y: Math.max(0, Math.round(Number(body.y) || 0))
+          x: Math.max(0, Math.round(x)),
+          y: Math.max(0, Math.round(y))
         };
         const documented = await writeFlowDocuments(flow);
         await saveFlow(dir, documented);
@@ -351,24 +471,46 @@ export async function startStudioServer({ root, host = "127.0.0.1", port = 0 } =
       }
 
       if (req.method === "POST" && action === "layout") {
-        const result = await mutateTopology(root, id, (draft) => {
-          const positions = layoutPositions(draft.nodes, draft.edges);
-          for (const node of draft.nodes) node.position = positions.get(node.id) ?? node.position;
-        });
-        sendJson(res, result.ok ? 200 : 400, result);
+        // 整理只重排坐标，不改拓扑；含环/未完成的图也应能整理，
+        // 因此绕开拓扑校验直接落盘（与 position 端点同策略）。
+        const { dir, flow } = await loadFlow(root, id);
+        const draft = structuredClone(flow);
+        const positions = layoutPositions(draft.nodes, draft.edges);
+        for (const node of draft.nodes) node.position = positions.get(node.id) ?? node.position;
+        await saveFlow(dir, draft);
+        const loaded = await loadFlow(root, id);
+        sendJson(res, 200, { ok: true, detail: flowDetail(loaded), levels: [] });
+        return;
+      }
+
+      if (req.method === "POST" && action === "flow-delete") {
+        const dir = flowDir(root, id);
+        const stored = await readJsonIfPresent(join(dir, "flow.json"));
+        if (!stored) {
+          sendJson(res, 404, { error: `工作流 ${id} 不存在` });
+          return;
+        }
+        const trashDir = join(root, "trash", `${new Date().toISOString().replace(/[:.]/g, "-")}-${id}`);
+        await mkdir(join(root, "trash"), { recursive: true });
+        await rename(dir, trashDir);
+        sendJson(res, 200, { ok: true, archivedTo: trashDir });
         return;
       }
 
       if (req.method === "POST" && action === "node-add") {
         const kind = KIND_LABELS[body.kind] ? body.kind : "agent";
         const suffix = Math.random().toString(36).slice(2, 7);
+        const requestedX = Number(body.x);
+        const requestedY = Number(body.y);
+        const x = Number.isFinite(requestedX) ? requestedX : 160;
+        const y = Number.isFinite(requestedY) ? requestedY : 120;
         const result = await mutateTopology(root, id, (draft) => {
           draft.nodes.push({
             id: `${kind}-${suffix}`,
             kind,
             position: {
-              x: Math.max(0, Math.round(Number(body.x) || 160)),
-              y: Math.max(0, Math.round(Number(body.y) || 120))
+              x: Math.max(0, Math.round(x)),
+              y: Math.max(0, Math.round(y))
             },
             data: {
               label: KIND_LABELS[kind],
@@ -432,6 +574,8 @@ export async function startStudioServer({ root, host = "127.0.0.1", port = 0 } =
               return;
             }
             chosen = free[0];
+          } else if (gateType !== "ifElse" && !chosen) {
+            chosen = gateType;
           }
           if (gateType === "not" && outgoing.length > 0) {
             sendJson(res, 400, { ok: false, error: "非门只允许一条出线" });
@@ -473,6 +617,22 @@ export async function startStudioServer({ root, host = "127.0.0.1", port = 0 } =
     }
   });
 
+  // 先绑定端口，再启动 watcher。listen 的 EADDRINUSE 是 EventEmitter error，
+  // 不能只靠 listen callback 的 Promise，否则 Electron 主进程会收到 uncaught exception。
+  await new Promise((resolveListen, rejectListen) => {
+    const onError = (error) => {
+      server.off("listening", onListening);
+      rejectListen(error);
+    };
+    const onListening = () => {
+      server.off("error", onError);
+      resolveListen();
+    };
+    server.once("error", onError);
+    server.once("listening", onListening);
+    server.listen(port, host);
+  });
+
   // 轮询式变更广播（跨平台，无 fs.watch 递归兼容问题）：1.2s 比对 flow.json/state.json 的 mtime 签名。
   const watcher = setInterval(async () => {
     try {
@@ -489,7 +649,6 @@ export async function startStudioServer({ root, host = "127.0.0.1", port = 0 } =
     for (const res of clients) res.write(": ping\n\n");
   }, 15_000);
 
-  await new Promise((resolve) => server.listen(port, host, resolve));
   return {
     server,
     root,

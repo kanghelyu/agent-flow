@@ -1,68 +1,47 @@
 #!/usr/bin/env bash
-# AgentFlow 安装器：CLI 装到 ~/.agent-flow，技能装进检测到的代理目录。
-# 幂等：重复运行只会更新文件。卸载见 README。
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-AF_HOME="${AF_HOME:-$HOME/.agent-flow}"
+INSTALL_DIR="${AGENTFLOW_INSTALL_DIR:-$HOME/.agent-flow}"
+BIN_DIR="${AGENTFLOW_BIN_DIR:-$HOME/.local/bin}"
 
-echo "==> 安装 af CLI 到 $AF_HOME/bin"
-mkdir -p "$AF_HOME/bin" "$AF_HOME/lib" "$AF_HOME/flows" "$AF_HOME/trash"
-cp "$HERE"/lib/*.js "$AF_HOME/lib/" 2>/dev/null || true
-cp "$HERE"/lib/*.mjs "$AF_HOME/lib/" 2>/dev/null || true
-cp "$HERE/bin/af.mjs" "$AF_HOME/bin/af.mjs"
-chmod +x "$AF_HOME/bin/af.mjs"
-# Studio 可视化画布 + 悬浮窗（Electron 运行时按需探测，见 studio-pet/run-pet.sh）
-mkdir -p "$AF_HOME/studio" "$AF_HOME/studio-pet"
-cp "$HERE"/studio/* "$AF_HOME/studio/"
-cp "$HERE"/studio-pet/main.js "$HERE"/studio-pet/preload.js "$HERE"/studio-pet/package.json \
-  "$HERE"/studio-pet/run-pet.sh "$HERE"/studio-pet/run-pet.command "$HERE"/studio-pet/HOST-WITH-CLAWD.md \
-  "$AF_HOME/studio-pet/"
-chmod +x "$AF_HOME/studio-pet/run-pet.sh" "$AF_HOME/studio-pet/run-pet.command" 2>/dev/null || true
+fail() { printf 'AgentFlow install: %s\n' "$1" >&2; exit 1; }
+command -v node >/dev/null 2>&1 || fail 'Node.js >= 18 is required.'
+command -v npm >/dev/null 2>&1 || fail 'npm is required.'
+node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 18 ? 0 : 1)' || fail "Node.js >= 18 is required (found $(node --version))."
 
-link_bin() {
-  local target="$1"
-  if [ -w "$(dirname "$target")" ]; then
-    ln -sf "$AF_HOME/bin/af.mjs" "$target"
-    echo "    链接 $target"
-  else
-    echo "    跳过 $target（目录不可写，可手动 sudo ln -sf）"
-  fi
-}
-for candidate in /usr/local/bin/af "$HOME/.local/bin/af" /opt/homebrew/bin/af; do
-  if [ -d "$(dirname "$candidate")" ] && [ ! -e "$candidate" ]; then
-    link_bin "$candidate"
-    break
-  fi
+mkdir -p "$INSTALL_DIR" "$BIN_DIR"
+for item in bin lib skills studio studio-pet; do
+  rm -rf "$INSTALL_DIR/$item"
+  cp -R "$HERE/$item" "$INSTALL_DIR/$item"
 done
-if ! command -v af >/dev/null 2>&1; then
-  echo "    提示：把 $AF_HOME/bin 加入 PATH，或执行：ln -sf $AF_HOME/bin/af.mjs /usr/local/bin/af"
+for item in package.json ATTRIBUTION.md README.md README.zh-CN.md INSTALL.md RUNTIME.md LICENSE; do
+  [ -e "$HERE/$item" ] && cp -f "$HERE/$item" "$INSTALL_DIR/$item"
+done
+if [ -d "$HERE/.zcode-plugin" ]; then
+  rm -rf "$INSTALL_DIR/.zcode-plugin"
+  cp -R "$HERE/.zcode-plugin" "$INSTALL_DIR/.zcode-plugin"
 fi
 
 install_skill() {
-  local dest="$1"
-  if [ -d "$(dirname "$dest")" ]; then
-    mkdir -p "$dest"
-    cp "$HERE/skills/agent-flow/SKILL.md" "$dest/SKILL.md"
-    echo "==> 技能已安装：$dest"
-  fi
+  local target="$1"
+  mkdir -p "$(dirname "$target")"
+  rm -rf "$target"
+  cp -R "$HERE/skills/agent-flow" "$target"
 }
+install_skill "$HOME/.zcode/skills/agent-flow"
+install_skill "$HOME/.claude/skills/agent-flow"
+CODEX_HOME_DIR="${CODEX_HOME:-$HOME/.codex}"
+install_skill "$CODEX_HOME_DIR/skills/agent-flow"
 
-# ZCode / Claude Code / Codex CLI（存在哪个装哪个；都没有时给出手动路径）
-found=0
-for dir in "$HOME/.zcode/skills" "$HOME/.claude/skills" "$HOME/.codex/skills"; do
-  if [ -d "$dir" ] || [ -d "$(dirname "$dir")" ]; then
-    install_skill "$dir/agent-flow"
-    found=1
-  fi
-done
-if [ "$found" -eq 0 ]; then
-  echo "==> 未检测到代理技能目录；手动复制："
-  echo "    ZCode:        mkdir -p ~/.zcode/skills/agent-flow && cp $HERE/skills/agent-flow/SKILL.md ~/.zcode/skills/agent-flow/"
-  echo "    Claude Code:  mkdir -p ~/.claude/skills/agent-flow && cp $HERE/skills/agent-flow/SKILL.md ~/.claude/skills/agent-flow/"
-  echo "    Codex CLI:    mkdir -p ~/.codex/skills/agent-flow && cp $HERE/skills/agent-flow/SKILL.md ~/.codex/skills/agent-flow/"
-fi
+ln -sfn "$INSTALL_DIR/bin/af.mjs" "$BIN_DIR/af"
+chmod +x "$INSTALL_DIR/bin/af.mjs" "$INSTALL_DIR/studio-pet/run-pet.sh"
 
-echo "==> 验证"
-node "$AF_HOME/bin/af.mjs" --version
-echo "完成。试试：af create \"示例\" --steps \"调研;实现;验收\""
+version="$(node -e 'const fs = require("node:fs"); process.stdout.write(JSON.parse(fs.readFileSync(process.argv[1], "utf8")).version)' "$INSTALL_DIR/package.json")"
+printf 'AgentFlow %s installed at %s\n' "$version" "$INSTALL_DIR"
+printf 'CLI: %s\n' "$BIN_DIR/af"
+printf 'Run: %s --version && %s doctor\n' "$BIN_DIR/af" "$BIN_DIR/af"
+printf 'If %s is not on PATH, add: export PATH="%s:$PATH"\n' "$BIN_DIR" "$BIN_DIR"
+printf 'Desktop pet is optional: %s/studio-pet/run-pet.sh\n' "$INSTALL_DIR"
+"$BIN_DIR/af" --version
+"$BIN_DIR/af" doctor --json

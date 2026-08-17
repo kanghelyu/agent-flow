@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AgentFlow Pet Size</title>
+<style>
+:root{color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;padding:18px;background:#20232b;color:#eef2f8;font:13px system-ui,-apple-system,"Segoe UI",sans-serif}
+label{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;font-weight:650}
+output{min-width:58px;text-align:right;color:#9fc1ff;font-variant-numeric:tabular-nums}
+input{display:block;width:100%;accent-color:#78a8ff}
+small{display:block;margin-top:10px;color:#aeb7c6;font-size:11px}
+</style>
+</head>
+<body>
+<label for="size"><span id="sizeLabel">Pet size</span><output id="value">1.00x</output></label>
+<input id="size" type="range" min="0.2" max="3" step="0.01" value="1">
+<small id="rangeLabel">Range 0.20x to 3.00x</small>
+<script>
+(() => {
+  const lang = new URLSearchParams(location.search).get('lang') === 'zh' ? 'zh' : 'en';
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+  document.title = lang === 'zh' ? 'AgentFlow 小宠大小' : 'AgentFlow Pet Size';
+  document.getElementById('sizeLabel').textContent = lang === 'zh' ? '宠物大小' : 'Pet size';
+  document.getElementById('rangeLabel').textContent = lang === 'zh' ? '范围 0.20x 到 3.00x' : 'Range 0.20x to 3.00x';
+  const size = document.getElementById('size');
+  const value = document.getElementById('value');
+  const initial = Number(window.petSize?.initial?.() ?? 1);
+  size.value = String(Math.max(0.2, Math.min(3, initial)));
+  const render = () => { value.textContent = `${Number(size.value).toFixed(2)}x`; };
+  size.addEventListener('input', () => {
+    render();
+    window.petSize?.set?.(Number(size.value));
+  });
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,56 +1,56 @@
-# AgentFlow Windows 安装器（PowerShell）
-# 用法：powershell -ExecutionPolicy Bypass -File install.ps1
-# 等价于 install.sh：CLI -> %USERPROFILE%\.agent-flow，技能 -> 检测到的代理目录。
-$ErrorActionPreference = "Stop"
+param(
+  [string]$InstallDir = $(if ($env:AGENTFLOW_INSTALL_DIR) { $env:AGENTFLOW_INSTALL_DIR } else { Join-Path $HOME '.agent-flow' }),
+  [string]$BinDir = $(if ($env:AGENTFLOW_BIN_DIR) { $env:AGENTFLOW_BIN_DIR } else { Join-Path $HOME '.local\bin' })
+)
 
-$here = Split-Path -Parent $MyInvocation.MyCommand.Path
-$afHome = if ($env:AF_HOME) { $env:AF_HOME } else { Join-Path $env:USERPROFILE ".agent-flow" }
+$ErrorActionPreference = 'Stop'
+$root = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-Write-Host "==> 安装 af CLI 到 $afHome"
-foreach ($sub in @("bin", "lib", "flows", "trash")) {
-  New-Item -ItemType Directory -Force -Path (Join-Path $afHome $sub) | Out-Null
+$node = Get-Command node -ErrorAction SilentlyContinue
+$npm = Get-Command npm -ErrorAction SilentlyContinue
+if (-not $node) { throw 'Node.js >= 18 is required.' }
+if (-not $npm) { throw 'npm is required.' }
+$nodeMajor = [int]((& $node.Source -p 'process.versions.node.split(".")[0]'))
+if ($nodeMajor -lt 18) { throw "Node.js >= 18 is required (found $((& $node.Source --version)))." }
+
+New-Item -ItemType Directory -Force -Path $InstallDir, $BinDir | Out-Null
+foreach ($item in @('bin', 'lib', 'skills', 'studio', 'studio-pet')) {
+  $destination = Join-Path $InstallDir $item
+  if (Test-Path $destination) { Remove-Item -Recurse -Force $destination }
+  Copy-Item -Recurse -Force (Join-Path $root $item) $destination
 }
-Copy-Item "$here\lib\*.js" (Join-Path $afHome "lib") -Force -ErrorAction SilentlyContinue
-Copy-Item "$here\lib\*.mjs" (Join-Path $afHome "lib") -Force -ErrorAction SilentlyContinue
-Copy-Item "$here\bin\af.mjs" (Join-Path $afHome "bin") -Force
-
-# Studio 可视化画布（Windows 下用 af studio 在浏览器打开；悬浮窗依赖 Electron，可选）
-New-Item -ItemType Directory -Force -Path (Join-Path $afHome "studio") | Out-Null
-Copy-Item "$here\studio\*" (Join-Path $afHome "studio") -Force
-New-Item -ItemType Directory -Force -Path (Join-Path $afHome "studio-pet") | Out-Null
-Copy-Item "$here\studio-pet\main.js", "$here\studio-pet\preload.js", "$here\studio-pet\package.json" (Join-Path $afHome "studio-pet") -Force
-
-# af.cmd shim：让 `af` 直接可用（放在 $afHome\bin，把它加入 PATH 即可）
-$shim = "@echo off`r`nnode ""$afHome\bin\af.mjs"" %*"
-Set-Content -Path (Join-Path $afHome "bin\af.cmd") -Value $shim -Encoding ASCII
-
-# 尽量把 shim 放进已在 PATH 的用户目录
-$shimDest = $null
-if (Test-Path "$env:USERPROFILE\.local\bin") { $shimDest = "$env:USERPROFILE\.local\bin" }
-elseif (Test-Path "$env:LOCALAPPDATA\Microsoft\WindowsApps") { $shimDest = "$env:LOCALAPPDATA\Microsoft\WindowsApps" }
-if ($shimDest) {
-  Copy-Item (Join-Path $afHome "bin\af.cmd") $shimDest -Force
-  Write-Host "    已放置 $shimDest\af.cmd"
-} else {
-  Write-Host "    提示：把 $afHome\bin 加入 PATH，或手动复制 af.cmd 到 PATH 中的目录"
+foreach ($item in @('package.json', 'ATTRIBUTION.md', 'README.md', 'README.zh-CN.md', 'INSTALL.md', 'RUNTIME.md', 'LICENSE')) {
+  $source = Join-Path $root $item
+  if (Test-Path $source) { Copy-Item -Force $source (Join-Path $InstallDir $item) }
+}
+$manifest = Join-Path $root '.zcode-plugin'
+if (Test-Path $manifest) {
+  $destination = Join-Path $InstallDir '.zcode-plugin'
+  if (Test-Path $destination) { Remove-Item -Recurse -Force $destination }
+  Copy-Item -Recurse -Force $manifest $destination
 }
 
-# 技能安装：存在哪个代理目录装哪个
-$skillSource = "$here\skills\agent-flow\SKILL.md"
-$found = $false
-foreach ($dir in @("$env:USERPROFILE\.zcode\skills", "$env:USERPROFILE\.claude\skills", "$env:USERPROFILE\.codex\skills")) {
-  $parent = Split-Path -Parent $dir
-  if ((Test-Path $dir) -or (Test-Path $parent)) {
-    New-Item -ItemType Directory -Force -Path "$dir\agent-flow" | Out-Null
-    Copy-Item $skillSource "$dir\agent-flow\SKILL.md" -Force
-    Write-Host "==> 技能已安装：$dir\agent-flow"
-    $found = $true
-  }
+function Install-Skill([string]$target) {
+  $parent = Split-Path -Parent $target
+  New-Item -ItemType Directory -Force -Path $parent | Out-Null
+  if (Test-Path $target) { Remove-Item -Recurse -Force $target }
+  Copy-Item -Recurse -Force (Join-Path $root 'skills\agent-flow') $target
 }
-if (-not $found) {
-  Write-Host "==> 未检测到代理技能目录；手动复制 skills\agent-flow\SKILL.md 到 ~/.zcode/skills/ 等"
-}
+Install-Skill (Join-Path $HOME '.zcode\skills\agent-flow')
+Install-Skill (Join-Path $HOME '.claude\skills\agent-flow')
+$codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME '.codex' }
+Install-Skill (Join-Path $codexHome 'skills\agent-flow')
 
-Write-Host "==> 验证"
-node (Join-Path $afHome "bin\af.mjs") --version
-Write-Host "完成。试试：af create `"示例`" --steps `"调研;实现;验收`""
+$launcher = Join-Path $BinDir 'af.cmd'
+$launcherContent = "@echo off`r`nnode `"$InstallDir\bin\af.mjs`" %*`r`n"
+Set-Content -LiteralPath $launcher -Value $launcherContent -Encoding ASCII
+$psLauncher = Join-Path $BinDir 'af.ps1'
+Set-Content -LiteralPath $psLauncher -Value "& node `"$InstallDir\bin\af.mjs`" @args" -Encoding UTF8
+
+$version = Get-Content (Join-Path $InstallDir 'package.json') -Raw | ConvertFrom-Json
+Write-Host "AgentFlow $($version.version) installed at $InstallDir"
+Write-Host "CLI: $launcher"
+Write-Host "If $BinDir is not on PATH, add it in Windows Environment Variables."
+Write-Host "Desktop pet is optional: $InstallDir\studio-pet\run-pet.ps1"
+& $launcher --version
+& $launcher doctor --json

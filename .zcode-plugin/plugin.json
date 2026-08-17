@@ -1,0 +1,22 @@
+{
+  "name": "agent-flow",
+  "description": "AgentFlow CLI, browser Studio, and optional desktop pet for Markdown-first agent workflows.",
+  "description_i18n": {
+    "en": "AgentFlow CLI, browser Studio, and optional desktop pet for Markdown-first agent workflows.",
+    "zh-CN": "面向编码代理的 Markdown-first 工作流 CLI、本地 Studio 和可选桌面小宠。"
+  },
+  "version": "0.2.3",
+  "author": {
+    "name": "AgentFlow contributors",
+    "url": "https://github.com/kanghelyu/agent-flow"
+  },
+  "license": "MIT",
+  "keywords": ["workflow", "coding-agent", "zcode", "claude-code", "codex", "studio"],
+  "skills": [
+    {
+      "name": "agent-flow",
+      "path": "skills/agent-flow/SKILL.md",
+      "description": "Design, validate, visualize, and execute deterministic AgentFlow workflows."
+    }
+  ]
+}

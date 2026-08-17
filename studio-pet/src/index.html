@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src 'self' data:; media-src 'self'; connect-src 'self';" />
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      overflow: hidden;
+      -webkit-user-select: none;
+      user-select: none;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    #cat {
+      display: block;
+      image-rendering: pixelated;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="cat"></canvas>
+  <script src="cat-sprite.js"></script>
+  <script src="pets.js"></script>
+  <script src="art-frames.js"></script>
+  <script src="template.js"></script>
+  <script src="bubble.js"></script>
+  <script src="audio.js"></script>
+  <script src="effects.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>

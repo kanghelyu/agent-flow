@@ -1,8 +1,46 @@
 {
   "name": "agent-flow-studio-pet",
-  "version": "0.1.0",
-  "description": "AgentFlow Studio floating pet window — always-on-top mini progress card that expands into the full canvas. Run with any local Electron binary (clawd-on-desk's Electron is reused automatically).",
-  "main": "main.js",
+  "version": "0.2.3",
+  "description": "AgentFlow desktop pet. Shell from pixelpets (MIT) — a pixel-art cat overlay, stripped to cat-only + AgentFlow status bridge.",
+  "main": "src/main.js",
   "license": "MIT",
-  "private": true
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "shot": "electron . --shot --state=idle --at=800",
+    "test:pet-size": "node scripts/pet-size-regression.mjs",
+    "check": "node --check src/main.js && node --check src/preload.js && node --check src/renderer.js",
+    "dist": "electron-builder",
+    "dist:dir": "electron-builder --dir"
+  },
+  "build": {
+    "appId": "org.agentflow.studio-pet",
+    "productName": "AgentFlow Pet",
+    "asar": true,
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "run-pet.*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../studio",
+        "to": "studio",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../lib",
+        "to": "lib",
+        "filter": ["**/*"]
+      }
+    ],
+    "mac": { "target": ["zip", "dmg"] },
+    "win": { "target": ["nsis", "portable"] },
+    "linux": { "target": ["AppImage", "deb"] }
+  },
+  "devDependencies": {
+    "electron": "37.2.6",
+    "electron-builder": "^26.0.12"
+  }
 }

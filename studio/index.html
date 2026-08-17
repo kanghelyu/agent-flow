@@ -26,41 +26,70 @@ html,body{height:100%;margin:0}
 body{display:flex;flex-direction:column;background:var(--bg);color:var(--ink);
   font:13px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
 button{font:inherit;cursor:pointer}
-.topbar{flex:none;display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--layer);border-bottom:1px solid var(--border)}
+button:disabled{opacity:0.38;cursor:default}
+.topbar{flex:none;display:flex;align-items:center;gap:8px;min-width:0;overflow-x:auto;overflow-y:hidden;padding:8px 14px;background:var(--layer);border-bottom:1px solid var(--border);z-index:5;scrollbar-width:thin}
+.topbar>*{flex:0 0 auto}
 .topbar .logo{display:flex;align-items:center;gap:7px;font-weight:750}
 .topbar .logo .spark{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:color-mix(in srgb,var(--brand) 14%,transparent);color:var(--brand);font-weight:800}
-.topbar select,.topbar input{border:1px solid var(--border2);border-radius:7px;background:var(--layer2);color:var(--ink);padding:5px 8px;outline:0}
+.topbar select,.topbar input{border:1px solid var(--border2);border-radius:7px;background:var(--layer2);color:var(--ink);padding:5px 8px;outline:0;min-width:140px;flex:0 0 auto}
 .topbar select:focus,.topbar input:focus{border-color:var(--brand)}
-.btn{border:1px solid var(--border2);border-radius:8px;background:var(--layer2);color:var(--ink);padding:5px 10px}
-.btn:hover{border-color:var(--brand)}
+.btn{border:1px solid var(--border2);border-radius:8px;background:var(--layer2);color:var(--ink);padding:5px 10px;transition:border-color .15s,background .15s,transform .15s}
+.btn:hover{border-color:var(--brand);background:color-mix(in srgb,var(--brand) 6%,var(--layer2))}
 .btn.primary{background:var(--brand);border-color:var(--brand);color:var(--on-brand);font-weight:650}
+.btn.primary:hover{filter:brightness(1.1)}
 .btn.danger{color:var(--err)}
 .btn.mini{padding:2px 8px;font-size:11px}
 .progress{display:flex;align-items:center;gap:7px;color:var(--ink2);font-size:12px}
 .progress .bar{width:110px;height:7px;border-radius:99px;background:var(--layer2);border:1px solid var(--border);overflow:hidden}
-.progress .bar i{display:block;height:100%;background:var(--brand)}
-.status{margin-left:auto;color:var(--ink2);font-size:12px;max-width:30%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.main{flex:1;display:flex;min-height:0}
-.canvas{flex:1;position:relative;overflow:hidden;user-select:none;background-color:var(--bg);
-  background-image:radial-gradient(circle,var(--border2) 1.1px,transparent 1.2px);
-  background-size:24px 24px;cursor:grab;touch-action:none}
+.progress .bar i{display:block;height:100%;background:var(--brand);transition:width .3s ease}
+.sync-state{font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;background:var(--layer2);color:var(--ink2);white-space:nowrap}
+.sync-state.ok{color:var(--ok);background:color-mix(in srgb,var(--ok) 10%,transparent)}
+.sync-state.bad{color:var(--err);background:color-mix(in srgb,var(--err) 10%,transparent)}
+.sync-state.saving{color:var(--warn);background:color-mix(in srgb,var(--warn) 10%,transparent)}
+.status{margin-left:auto;color:var(--ink2);font-size:12px;min-width:180px;max-width:360px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.main{flex:1;display:flex;min-width:0;min-height:0}
+.docrail{flex:none;width:264px;display:flex;flex-direction:column;background:var(--layer);border-right:1px solid var(--border);min-width:0;min-height:0;transition:width .18s ease}
+.docrail.collapsed{width:42px}
+.docrail.collapsed .docrail-list,.docrail.collapsed .docrail-title{display:none}
+.docrail-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border);min-height:46px}
+.docrail-title{font-size:13px;font-weight:700}
+.docrail-toggle{width:24px;height:24px;border:0;border-radius:6px;background:transparent;color:var(--ink2);cursor:pointer;font-size:14px}
+.docrail-toggle:hover{background:var(--layer2);color:var(--brand)}
+.docrail-list{flex:1;min-width:0;min-height:0;overflow:auto;padding:9px;display:flex;flex-direction:column;gap:6px}
+.docgroup{padding:5px 7px 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink2)}
+.docitem{width:100%;display:grid;grid-template-columns:24px minmax(0,1fr);gap:9px;align-items:start;text-align:left;border:1px solid transparent;border-radius:10px;background:transparent;color:var(--ink);padding:8px;cursor:pointer}
+.docitem:hover{background:var(--layer2);border-color:var(--border)}
+.docitem.active{background:color-mix(in srgb,var(--brand) 10%,var(--layer));border-color:color-mix(in srgb,var(--brand) 45%,var(--border));color:var(--brand)}
+.docitem__icon{width:24px;height:28px;border:1px solid currentColor;border-radius:5px;display:grid;place-items:center;font-size:9px;font-weight:800;opacity:.76}
+.docitem__label{display:block;font-size:12px;font-weight:650;white-space:normal;overflow-wrap:anywhere;word-break:break-word}
+.docitem__path{display:block;font:9px/1.4 ui-monospace,Menlo,monospace;color:var(--ink2);white-space:normal;overflow-wrap:anywhere;word-break:break-word}
+.splitter{flex:none;width:9px;background:var(--layer);cursor:col-resize;touch-action:none;position:relative;display:grid;place-items:center}
+.splitter::before{content:"";position:absolute;inset:0 3px;background:var(--border)}
+.splitter::after{content:"";width:3px;height:42px;border-radius:99px;background:var(--border2);box-shadow:0 -7px 0 var(--border2),0 7px 0 var(--border2)}
+.splitter:hover::before{background:var(--brand)}
+.canvas{flex:1;min-width:0;min-height:0;position:relative;overflow:hidden;user-select:none;background-color:var(--bg);
+  background-image:radial-gradient(circle,var(--border2) 1.1px,transparent 1.2px),
+    radial-gradient(ellipse at 50% 0%,color-mix(in srgb,var(--brand) 6%,transparent),transparent 52%);
+  background-size:24px 24px,100% 100%;cursor:grab;touch-action:none}
 .canvas.panning{cursor:grabbing}
 .stage{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
 .edges{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none}
-.edge{fill:none;stroke:var(--brand);stroke-width:2.6;stroke-linecap:round;vector-effect:non-scaling-stroke;pointer-events:none}
-.edge.sel{stroke-width:3.8;filter:drop-shadow(0 0 4px color-mix(in srgb,var(--brand) 55%,transparent))}
-.edge-hit{fill:none;stroke:transparent;stroke-width:16;vector-effect:non-scaling-stroke;pointer-events:stroke;cursor:pointer}
+.edge{fill:none;stroke:var(--brand);stroke-width:2.6;stroke-linecap:round;vector-effect:non-scaling-stroke;pointer-events:none;filter:drop-shadow(0 0 2px color-mix(in srgb,var(--brand) 36%,transparent))}
+.edge.active{opacity:1}.edge.inactive{opacity:.28;stroke-dasharray:4 5}.edge.pending{opacity:.58;stroke-dasharray:8 5}
+.edge.sel{stroke-width:3.8;filter:drop-shadow(0 0 4px color-mix(in srgb,var(--brand) 58%,transparent))}
+.edge-hit{fill:none;stroke:transparent;stroke-width:18;vector-effect:non-scaling-stroke;pointer-events:stroke;cursor:pointer}
 .conn{fill:none;stroke:var(--brand);stroke-width:2;stroke-dasharray:7 5;vector-effect:non-scaling-stroke;pointer-events:none}
 .edge-label-bg{fill:var(--layer);stroke:var(--border);vector-effect:non-scaling-stroke}
 .edge-label{fill:var(--ink);font-size:10px;font-weight:700;text-anchor:middle;dominant-baseline:middle;pointer-events:none}
-.node{position:absolute;width:var(--node-w);height:var(--node-h);cursor:grab}
-.node.dragging{cursor:grabbing}
+.node{position:absolute;width:var(--node-w);height:var(--node-h);cursor:grab;transition:filter .15s}
+.node.dragging{cursor:grabbing;filter:drop-shadow(0 14px 32px color-mix(in srgb,var(--ink) 18%,transparent))}
 .card{width:100%;height:100%;padding:12px 14px;border:1px solid var(--border2);border-radius:12px;overflow:hidden;
   background:color-mix(in srgb,var(--layer) 96%,var(--brand) 4%);box-shadow:0 8px 24px color-mix(in srgb,var(--ink) 9%,transparent);
-  transition:border-color .15s ease,box-shadow .15s ease}
-.node:hover .card{border-color:color-mix(in srgb,var(--brand) 55%,var(--border2))}
-.node.sel .card{border-color:var(--brand);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 20%,transparent)}
+  transition:border-color .16s ease,box-shadow .16s ease,transform .16s ease}
+.node:hover .card{border-color:color-mix(in srgb,var(--brand) 55%,var(--border2));transform:translateY(-1px);box-shadow:0 12px 30px color-mix(in srgb,var(--ink) 12%,transparent)}
+.node.sel .card{border-color:var(--brand);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 18%,transparent),0 12px 30px color-mix(in srgb,var(--ink) 12%,transparent)}
 .node.ready .card{border-color:color-mix(in srgb,var(--ok) 60%,var(--border2))}
+.node.skipped{opacity:.48}.node.skipped .card{border-style:dashed}
 .kind{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink2);margin-bottom:2px;display:flex;gap:6px;align-items:center}
 .k-input .kind{color:var(--ok)} .k-agent .kind{color:var(--brand)} .k-mapAgent .kind{color:var(--warn)}
 .k-condition .kind{color:var(--warn)} .k-merge .kind{color:var(--ink2)} .k-output .kind{color:var(--err)}
@@ -69,21 +98,22 @@ button{font:inherit;cursor:pointer}
 .nprompt{margin-top:5px;font-size:11px;color:var(--ink2);white-space:pre-wrap;max-height:32px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .npath{margin-top:7px;padding-top:6px;border-top:1px solid var(--border);font:10px/1.3 ui-monospace,Menlo,monospace;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .done-mark{position:absolute;top:-9px;right:-9px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;
-  background:var(--ok);color:#fff;font-size:12px;font-weight:800;border:2px solid var(--bg)}
+  background:var(--ok);color:#fff;font-size:12px;font-weight:800;border:2px solid var(--bg);box-shadow:0 2px 8px color-mix(in srgb,var(--ok) 40%,transparent);z-index:2}
 .formula{position:absolute;left:10px;right:10px;bottom:6px;font:9px/1.2 ui-monospace,Menlo,monospace;color:var(--ink2);white-space:nowrap;overflow:hidden}
-.handle{position:absolute;top:50%;width:13px;height:13px;border:2px solid var(--bg);border-radius:50%;background:var(--brand);
-  transform:translateY(-50%);cursor:crosshair;z-index:3}
+.handle{position:absolute;top:50%;width:13px;height:13px;padding:0;border:2px solid var(--bg);border-radius:50%;background:var(--brand);
+  transform:translateY(-50%);cursor:crosshair;z-index:3;box-shadow:0 0 0 1px color-mix(in srgb,var(--brand) 65%,var(--border2));
+  transition:transform .14s ease,box-shadow .14s ease}
 .handle.t{left:-6px} .handle.s{right:-6px}
-.handle:hover{box-shadow:0 0 0 5px color-mix(in srgb,var(--brand) 18%,transparent)}
-.node.hover-target .card{outline:2px solid var(--brand);outline-offset:3px}
+.handle:hover,.handle:focus-visible{transform:translateY(-50%) scale(1.18);box-shadow:0 0 0 5px color-mix(in srgb,var(--brand) 18%,transparent);outline:0}
+.node.hover-target .card{outline:2px solid var(--brand);outline-offset:3px;box-shadow:0 0 0 4px color-mix(in srgb,var(--brand) 14%,transparent),0 10px 28px color-mix(in srgb,var(--ink) 18%,transparent)}
 .controls{position:absolute;left:12px;bottom:12px;display:grid;border:1px solid var(--border2);border-radius:9px;overflow:hidden;background:var(--layer);box-shadow:0 8px 20px color-mix(in srgb,var(--ink) 10%,transparent)}
 .controls button{width:34px;height:30px;border:0;border-bottom:1px solid var(--border);background:var(--layer2);color:var(--ink);font-weight:750}
 .controls button:last-child{border-bottom:0}
 .controls button:hover{background:color-mix(in srgb,var(--brand) 10%,var(--layer2));color:var(--brand)}
 .addbar{flex:none;display:flex;align-items:center;gap:6px;padding:7px 14px;border-top:1px solid var(--border);background:var(--layer);flex-wrap:wrap}
 .addbar .hint{margin-left:auto;color:var(--ink2);font-size:10px}
-.inspector{flex:none;width:340px;display:flex;flex-direction:column;background:var(--layer);border-left:1px solid var(--border);min-height:0}
-.inspector .scroll{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.inspector{flex:none;width:340px;display:flex;flex-direction:column;background:var(--layer);border-left:1px solid var(--border);min-width:0;min-height:0}
+.inspector .scroll{flex:1;min-width:0;min-height:0;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
 .inspector h3{margin:0;font-size:14px}
 .inspector label{display:grid;gap:4px;color:var(--ink2);font-size:12px}
 .inspector input,.inspector select,.inspector textarea{width:100%;border:1px solid var(--border2);border-radius:7px;background:var(--layer2);color:var(--ink);padding:6px 8px;outline:0}
@@ -113,19 +143,52 @@ button{font:inherit;cursor:pointer}
 .eval-panel.open{display:block}
 .eval-panel textarea{width:100%;min-height:64px;border:1px solid var(--border2);border-radius:8px;background:var(--layer2);color:var(--ink);font:11px/1.5 ui-monospace,Menlo,monospace}
 .eval-out{margin-top:8px;font:10px/1.5 ui-monospace,Menlo,monospace;color:var(--ink2);white-space:pre-wrap;word-break:break-all}
-.empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--ink2);text-align:center;padding:24px}
-body.pet .topbar,body.pet .addbar,body.pet .inspector,body.pet .eval-panel{display:none}
-body.pet{background:var(--layer)}
-body.pet .canvas{background-image:none;cursor:pointer}
-.pet-card{position:absolute;inset:10px;border-radius:14px;border:1px solid var(--border2);background:var(--layer2);
-  display:flex;flex-direction:column;justify-content:center;gap:6px;padding:12px 14px;-webkit-app-region:drag;cursor:pointer;
-  box-shadow:0 10px 30px color-mix(in srgb,var(--ink) 14%,transparent)}
-.pet-card .t{display:flex;align-items:center;gap:8px;font-weight:750}
-.pet-card .t .spark{width:24px;height:24px;border-radius:8px;display:grid;place-items:center;background:color-mix(in srgb,var(--brand) 14%,transparent);color:var(--brand)}
-.pet-card .sub{color:var(--ink2);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pet-card .bar{height:7px;border-radius:99px;background:var(--layer);border:1px solid var(--border);overflow:hidden}
-.pet-card .bar i{display:block;height:100%;background:var(--brand)}
-@media(max-width:900px){.inspector{position:absolute;right:0;top:0;bottom:0;z-index:10;box-shadow:-10px 0 30px color-mix(in srgb,var(--ink) 14%,transparent)}}
+.empty{position:absolute;inset:0;z-index:6;display:grid;place-items:center;padding:24px;pointer-events:none}
+.empty .card{width:max-content;max-width:min(92%,430px);padding:22px 26px;border:1px dashed var(--border2);border-radius:14px;background:var(--layer);color:var(--ink2);font-size:12px;line-height:1.7;text-align:center;box-shadow:0 10px 30px color-mix(in srgb,var(--ink) 10%,transparent);pointer-events:auto}
+.empty .card strong{display:block;margin-bottom:6px;color:var(--ink);font-size:13px}
+.empty .card .btn{margin-top:8px}
+body.pet .topbar,body.pet .addbar,body.pet .inspector,body.pet .eval-panel,body.pet .controls,body.pet .docrail,body.pet .splitter{display:none}
+body.pet{background:transparent;overflow:hidden}
+body.pet .main,body.pet .canvas{background:transparent}
+body.pet .canvas{background-image:none;cursor:default}
+.pet-card{position:absolute;inset:5px;border-radius:16px;border:1px solid color-mix(in srgb,var(--border2) 76%,transparent);
+  background:color-mix(in srgb,var(--layer2) 97%,transparent);display:grid;grid-template-columns:46px minmax(0,1fr) 52px;align-items:center;
+  gap:8px;padding:8px 8px 8px 10px;box-shadow:0 8px 22px color-mix(in srgb,#000 15%,transparent);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);user-select:none;overflow:hidden;-webkit-app-region:drag}
+.pet-drag{position:absolute;left:0;right:0;top:0;height:18px;cursor:grab;z-index:0}
+.pet-avatar{width:42px;height:42px;border-radius:14px;background:color-mix(in srgb,var(--brand) 8%,var(--layer));
+  border:1px solid color-mix(in srgb,var(--brand) 14%,var(--border));display:grid;place-items:center;position:relative;
+  -webkit-app-region:no-drag;cursor:pointer;transition:transform .16s ease,background .2s ease;z-index:1}
+.pet-kitty{width:30px;height:29px;position:relative;display:grid;place-items:end center}
+.pet-ear{position:absolute;top:1px;width:10px;height:12px;background:var(--ink);border-radius:3px 8px 3px 8px;transform:rotate(15deg)}
+.pet-ear.left{left:3px;transform:rotate(-15deg) scaleX(-1)}.pet-ear.right{right:3px}
+.pet-face{width:28px;height:24px;border-radius:12px 12px 13px 13px;background:var(--ink);position:relative;z-index:1}
+.pet-eye{position:absolute;top:8px;width:3px;height:5px;border-radius:99px;background:var(--layer2)}
+.pet-eye.left{left:7px}.pet-eye.right{right:7px}
+.pet-nose{position:absolute;left:50%;top:14px;width:3px;height:2px;border-radius:50%;background:var(--layer2);transform:translateX(-50%)}
+.pet-mouth{position:absolute;left:50%;bottom:4px;width:7px;height:3px;border-bottom:1.5px solid var(--layer2);border-radius:0 0 8px 8px;transform:translateX(-50%)}
+.pet-avatar[data-state="working"] .pet-eye{height:3px;top:9px}.pet-avatar[data-state="done"]{background:color-mix(in srgb,#39a96b 11%,var(--layer))}
+.pet-avatar[data-state="idle"]{opacity:.9}.pet-avatar.poke{animation:petPoke .42s ease}.pet-avatar.flail{animation:petFlail .65s ease}
+@keyframes petPoke{0%,100%{transform:scale(1)}45%{transform:scale(.9) translateY(2px)}70%{transform:scale(1.04) translateY(-1px)}}
+@keyframes petFlail{0%,100%{transform:rotate(0)}20%{transform:rotate(-9deg) translateY(-2px)}40%{transform:rotate(9deg)}60%{transform:rotate(-7deg)}80%{transform:rotate(6deg)}}
+.pet-info{min-width:0;display:flex;flex-direction:column;gap:4px;z-index:1}
+.pet-card .t{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:760;min-width:0}
+.pet-card .t .name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pet-health{width:8px;height:8px;border-radius:50%;background:#858b98;box-shadow:0 0 0 3px color-mix(in srgb,#858b98 15%,transparent);flex:none}
+.pet-health[data-valid="true"]{background:#42b883;box-shadow:0 0 0 3px color-mix(in srgb,#42b883 15%,transparent)}
+.pet-health[data-valid="false"]{background:#e35d6a;box-shadow:0 0 0 3px color-mix(in srgb,#e35d6a 15%,transparent)}
+.pet-state{font-size:8px;line-height:1;padding:3px 5px;border-radius:99px;background:color-mix(in srgb,var(--brand) 9%,transparent);color:var(--brand);flex:none}
+.pet-state[data-state="done"]{background:color-mix(in srgb,#39a96b 10%,transparent);color:#39a96b}
+.pet-card .sub{color:var(--ink2);font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pet-card .bar{height:4px;border-radius:99px;background:var(--layer);overflow:hidden}
+.pet-card .bar i{display:block;height:100%;background:var(--brand);transition:width .2s ease}
+.pet-actions{display:flex;align-items:center;gap:2px;-webkit-app-region:no-drag;z-index:2}
+.pet-open,.pet-settings{width:24px;height:24px;border:0;border-radius:8px;background:transparent;color:var(--ink2);font-size:14px;cursor:pointer}
+.pet-open:hover,.pet-settings:hover{background:var(--layer);color:var(--ink)}
+body.pet[data-pet-size="small"] .pet-state{display:none}
+body.pet[data-pet-size="small"] .pet-card{grid-template-columns:46px minmax(0,1fr) 52px}
+
+@media(max-width:900px){.inspector{position:absolute;right:0;top:0;bottom:0;z-index:10;box-shadow:-10px 0 30px color-mix(in srgb,var(--ink) 14%,transparent)}.docrail{position:absolute;left:0;top:0;bottom:0;z-index:10;box-shadow:10px 0 30px color-mix(in srgb,var(--ink) 14%,transparent)}.splitter{display:none}}
 </style>
 </head>
 <body>
@@ -133,6 +196,9 @@ body.pet .canvas{background-image:none;cursor:pointer}
   <span class="logo"><span class="spark">✦</span>AgentFlow Studio</span>
   <select id="flowSelect"></select>
   <span class="progress"><span class="bar"><i id="progressBar"></i></span><span id="progressText">–</span></span>
+  <span class="sync-state" id="syncStatus">–</span>
+  <button class="btn primary" id="btnNewFlow">+ 新建</button>
+  <button class="btn danger" id="btnDeleteFlow" data-i18n="deleteFlow">删除工作流</button>
   <button class="btn" id="btnValidate" data-i18n="validate">校验</button>
   <button class="btn" id="btnEvaluate" data-i18n="evaluate">求值</button>
   <button class="btn" id="btnLayout" data-i18n="layout">整理布局</button>
@@ -142,6 +208,14 @@ body.pet .canvas{background-image:none;cursor:pointer}
   <button class="btn mini" id="btnCollapse" style="display:none">⌃</button>
 </div>
 <div class="main">
+  <aside class="docrail" id="docrail">
+    <div class="docrail-head">
+      <span class="docrail-title" data-i18n="documents">文档</span>
+      <button class="docrail-toggle" id="btnToggleDocrail" title="折叠/展开">‹</button>
+    </div>
+    <div class="docrail-list" id="docrailList"></div>
+  </aside>
+  <div class="splitter" id="leftSplitter" role="separator" aria-label="调整左侧面板"></div>
   <div class="canvas" id="canvas">
     <div class="stage" id="stage">
       <svg class="edges" id="edgesSvg" width="1" height="1" aria-label="arrows"><defs>
@@ -163,11 +237,24 @@ body.pet .canvas{background-image:none;cursor:pointer}
       </div>
       <div class="eval-out" id="evalOut"></div>
     </div>
-    <div class="empty" id="emptyState" style="display:none" data-i18n-html="empty"></div>
-    <div class="pet-card" id="petCard" style="display:none">
-      <div class="t"><span class="spark">✦</span><span id="petName">–</span></div>
-      <div class="sub" id="petNext">–</div>
-      <div class="bar"><i id="petBar"></i></div>
+    <div class="empty" id="emptyState" style="display:none"><div class="card"><span id="emptyMsg">还没有工作流。点击上方「+ 新建」按钮或使用终端: <code>af create</code></span></div></div>
+    <div class="pet-card" id="petCard" style="display:none" title="Drag anywhere on the card to move">
+      <div class="pet-drag" aria-hidden="true"></div>
+      <div class="pet-avatar" id="petAvatar" data-state="idle" title="Double-click to poke; 4 quick clicks for a reaction">
+        <div class="pet-kitty" aria-hidden="true">
+          <i class="pet-ear left"></i><i class="pet-ear right"></i>
+          <div class="pet-face"><i class="pet-eye left"></i><i class="pet-eye right"></i><i class="pet-nose"></i><span class="pet-mouth"></span></div>
+        </div>
+      </div>
+      <div class="pet-info">
+        <div class="t"><i class="pet-health" id="petHealth" data-valid="unknown"></i><span class="name" id="petName">–</span><span class="pet-state" id="petState">idle</span></div>
+        <div class="sub" id="petNext">–</div>
+        <div class="bar"><i id="petBar"></i></div>
+      </div>
+      <div class="pet-actions">
+        <button class="pet-settings" id="petSettings" title="Pet settings">⋯</button>
+        <button class="pet-open" id="petOpen" title="Open AgentFlow">↗</button>
+      </div>
     </div>
   </div>
   <aside class="inspector" id="inspector">
@@ -199,20 +286,24 @@ const COPY = {
     kCondition: "条件", kMerge: "合并", kOutput: "输出",
     addHint: "从右侧圆点拖到目标框连线；Delete 删除选中",
     empty: "还没有工作流。<br>回到终端让 Agent 运行 <code>af create</code>，或用 <code>af create --json flow.json</code> 导入。",
-    ready: "就绪", savedDoc: "已保存到 ", nodeAdded: "节点已添加", edgeAdded: "箭头已连接",
+    ready: "就绪", saving: "○ Saving...", synced: "● Agent synced", notExecutable: "● Not executable",
+    savedDoc: "已保存到 ", nodeAdded: "节点已添加", edgeAdded: "箭头已连接",
     edgeDeleted: "箭头已删除", invalid: "结构不合法",
     selectTitle: "选择一个节点",
     selectBody: "点击画布中的流程框查看和编辑它的 STEP.md、标记完成状态。",
     selectTip: "点击流程框查看 STEP.md 与状态；画布空白处拖动平移，Ctrl/⌘+滚轮缩放。",
     master: "总纲", edge: "箭头", connect: "连接", deleteEdge: "删除箭头",
+    documents: "文档", workflowDoc: "工作流文档", stepDocs: "步骤文档", filePath: "文件路径", none: "无",
     stepDoc: "STEP 文档", markdown: "Markdown 内容", saveDoc: "保存文档",
     markDone: "标记完成", undoDone: "撤销完成", deleteNode: "删除节点",
-    chipDone: "已完成", chipReady: "可执行", chipWaiting: "等待 ", chipIdle: "未开始",
+    chipDone: "已完成", chipReady: "可执行", chipSkipped: "已跳过", chipAuto: "Runtime 自动", chipWaiting: "等待 ", chipIdle: "未开始",
+    resultJson: "结果 JSON", valuePath: "值路径 (JSONPath)",
     branchTitle: "选择判断分支", branchIntro: "「是」和「否」各只能连接一个目标。",
     gateTitle: "选择条件框的逻辑门",
     gateIntro: "门会计算入边布尔值并传播真实结果，不只是箭头标签。",
     cancel: "取消",
-    petAllDone: "全部完成 ✓", petNext: "下一步：", noFlow: "暂无工作流",
+    petAllDone: "全部完成 ✓", petNext: "下一步：", noFlow: "暂无工作流", petIdle: "待命", petWorking: "进行中", petDone: "完成",
+    petHealthy: "工作流结构合法", petBroken: "工作流结构有问题", petUnknown: "暂无可校验工作流", petSettings: "桌宠设置",
     kinds: { input: "输入", agent: "Agent", mapAgent: "Map Agent", condition: "条件", merge: "合并", output: "输出" },
     gateShort: { ifElse: "是/否", and: "与", or: "或", not: "非", nand: "与非", nor: "或非", xor: "异或", xnor: "同或" },
     branch: { true: "是", false: "否", and: "与", or: "或", not: "非", nand: "与非", nor: "或非", xor: "异或", xnor: "同或" },
@@ -226,7 +317,10 @@ const COPY = {
       ["xor", "异或（XOR）", "真值个数为奇数时为真"],
       ["xnor", "同或（XNOR）", "真值个数为偶数时为真"]
     ],
-    validateOk: "✓ 结构合法：", validateBad: "✗ "
+    validateOk: "✓ 结构合法：", validateBad: "✗ ",
+    layoutDone: "✓ 画布已整理", newFlowTitle: "新建工作流", newFlowName: "名称", createBtn: "创建",
+    flowCreated: "已新建", deleteFlow: "删除工作流", deleteFlowTitle: "删除工作流",
+    deleteFlowBody: "工作流会移入回收目录（trash），可手工恢复。确定删除？", deleteBtn: "删除", flowDeleted: "已删除"
   },
   en: {
     validate: "Validate", evaluate: "Evaluate", layout: "Tidy layout", close: "Close",
@@ -234,20 +328,24 @@ const COPY = {
     kCondition: "Condition", kMerge: "Merge", kOutput: "Output",
     addHint: "Drag from the right dot to another box to connect; Delete removes the selection",
     empty: "No workflows yet.<br>Ask your agent to run <code>af create</code> in the terminal, or import with <code>af create --json flow.json</code>.",
-    ready: "Ready", savedDoc: "Saved to ", nodeAdded: "Node added", edgeAdded: "Arrow connected",
+    ready: "Ready", saving: "○ Saving...", synced: "● Agent synced", notExecutable: "● Not executable",
+    savedDoc: "Saved to ", nodeAdded: "Node added", edgeAdded: "Arrow connected",
     edgeDeleted: "Arrow deleted", invalid: "Invalid structure",
     selectTitle: "Select a node",
     selectBody: "Click a flow box to view and edit its STEP.md and mark progress.",
     selectTip: "Click a box to open its STEP.md; drag empty space to pan, Ctrl/Cmd+wheel to zoom.",
     master: "Master workflow", edge: "Arrow", connect: "Connection", deleteEdge: "Delete arrow",
+    documents: "Documents", workflowDoc: "Workflow doc", stepDocs: "Step docs", filePath: "File path", none: "None",
     stepDoc: "STEP document", markdown: "Markdown content", saveDoc: "Save document",
     markDone: "Mark done", undoDone: "Undo done", deleteNode: "Delete node",
-    chipDone: "Done", chipReady: "Ready", chipWaiting: "Waiting for ", chipIdle: "Not started",
+    chipDone: "Done", chipReady: "Ready", chipSkipped: "Skipped", chipAuto: "Runtime auto", chipWaiting: "Waiting for ", chipIdle: "Not started",
+    resultJson: "Result JSON", valuePath: "Value path (JSONPath)",
     branchTitle: "Choose a branch", branchIntro: "Yes and No can each connect to one target only.",
     gateTitle: "Choose a logic gate",
     gateIntro: "Gates compute incoming Boolean values and propagate real results — not just labels.",
     cancel: "Cancel",
-    petAllDone: "All done ✓", petNext: "Next: ", noFlow: "No workflow",
+    petAllDone: "All done ✓", petNext: "Next: ", noFlow: "No workflow", petIdle: "Idle", petWorking: "Working", petDone: "Done",
+    petHealthy: "Workflow is valid", petBroken: "Workflow has validation errors", petUnknown: "No workflow to validate", petSettings: "Pet settings",
     kinds: { input: "Input", agent: "Agent", mapAgent: "Map Agent", condition: "Condition", merge: "Merge", output: "Output" },
     gateShort: { ifElse: "Y/N", and: "AND", or: "OR", not: "NOT", nand: "NAND", nor: "NOR", xor: "XOR", xnor: "XNOR" },
     branch: { true: "Yes", false: "No", and: "AND", or: "OR", not: "NOT", nand: "NAND", nor: "NOR", xor: "XOR", xnor: "XNOR" },
@@ -261,7 +359,10 @@ const COPY = {
       ["xor", "XOR gate", "True when an odd number of inputs are true"],
       ["xnor", "XNOR gate", "True when an even number of inputs are true"]
     ],
-    validateOk: "✓ Valid: ", validateBad: "✗ "
+    validateOk: "✓ Valid: ", validateBad: "✗ ",
+    layoutDone: "✓ Canvas tidied", newFlowTitle: "New workflow", newFlowName: "Name", createBtn: "Create",
+    flowCreated: "Created", deleteFlow: "Delete flow", deleteFlowTitle: "Delete workflow",
+    deleteFlowBody: "The flow is moved to the trash folder (recoverable by hand). Delete?", deleteBtn: "Delete", flowDeleted: "Deleted"
   }
 };
 let LANG = params.get("lang") === "en" ? "en" : params.get("lang") === "zh" ? "zh"
@@ -281,7 +382,10 @@ function applyI18n() {
   $("btnLang").textContent = LANG === "zh" ? "EN" : "中文";
   $("btnCollapse").title = T.close;
 }
-if (petMode) document.body.classList.add("pet");
+if (petMode) {
+  document.body.classList.add("pet");
+  document.body.dataset.petSize = params.get("size") || "small";
+}
 applyI18n();
 $("btnTheme").addEventListener("click", () => {
   const next = (document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")) === "dark" ? "light" : "dark";
@@ -300,20 +404,133 @@ const state = {
   flows: [], id: null, detail: null,
   selected: null, selectedEdge: null,
   view: { x: 24, y: 24, zoom: 0.85 },
-  liveDrag: null, conn: null, dirtySel: null
+  liveDrag: null, conn: null, dirtySel: null,
+  docrail: { open: true, width: 264 }
 };
 
 async function api(path, options) {
-  const res = await fetch(path, options ? {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(options)
-  } : undefined);
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || data.issues?.join("\n") || res.statusText);
-  return data;
+  if (options) { const el = $("syncStatus"); if (el) { el.textContent = T.saving; el.className = "sync-state saving"; } }
+  let data;
+  try {
+    const res = await fetch(path, options ? {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(options)
+    } : undefined);
+    data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || data.issues?.join("\n") || res.statusText);
+    return data;
+  } catch (e) {
+    // 失败必须立刻恢复同步徽标，否则永远卡在「Saving...」。
+    renderSync();
+    if (data?.issues?.length && !data.error) showError(data.issues.join("\n"));
+    else setStatus(String(e.message ?? e));
+    throw e;
+  }
 }
 const setStatus = (text) => { $("status").textContent = text; };
+// 错误弹窗：嵌入式 webview 里 status 一行小字用户根本看不见。
+function showError(message, title) {
+  const bg = dialogBase(`<h3>${escapeHtml(title ?? "操作失败")}</h3><p style="white-space:pre-wrap">${escapeHtml(message)}</p>
+    <div class="actions"><button class="btn primary" data-x>确定</button></div>`);
+  bg.querySelector("[data-x]").onclick = () => bg.remove();
+}
+function renderSync() {
+  const el = $("syncStatus"), d = state.detail;
+  if (!el) return;
+  if (!d) { el.textContent = "–"; el.className = "sync-state"; return; }
+  const ok = d.execution?.synced && d.execution?.executable;
+    el.textContent = ok ? `${T.synced}${d.execution?.cyclic ? (LANG === "zh" ? " · 控制环" : " · cyclic") : ""} · rev ${d.revision}` : `${T.notExecutable} · rev ${d.revision}`;
+  el.className = `sync-state ${ok ? "ok" : "bad"}`;
+  el.title = d.execution?.issues?.join("\n") || "";
+}
+
+/* ---------- 左侧文档边栏 ---------- */
+function renderDocrail() {
+  const rail = $("docrail");
+  const list = $("docrailList");
+  const d = state.detail;
+  rail.classList.toggle("collapsed", !state.docrail.open);
+  $("btnToggleDocrail").textContent = state.docrail.open ? "‹" : "›";
+  rail.style.width = state.docrail.open ? `${state.docrail.width}px` : "42px";
+  if (!state.docrail.open || !d) { list.innerHTML = ""; return; }
+
+  const workflowDoc = d.workflowDoc || "WORKFLOW.md";
+  const docRoot = d.docRoot || T.none;
+  const isWorkflowActive = state.selected === null && state.selectedEdge === null;
+
+  list.innerHTML = `
+    <div class="docgroup">${escapeHtml(T.workflowDoc)}</div>
+    <button class="docitem${isWorkflowActive ? " active" : ""}" data-doc="workflow">
+      <span class="docitem__icon">MD</span>
+      <span>
+        <span class="docitem__label">${escapeHtml(workflowDoc)}</span>
+        <span class="docitem__path">${escapeHtml(docRoot)}</span>
+      </span>
+    </button>
+    <div class="docgroup">${escapeHtml(T.stepDocs)}</div>
+    ${d.nodes.map((node, index) => `
+      <button class="docitem${state.selected === node.id ? " active" : ""}" data-node="${escapeHtml(node.id)}">
+        <span class="docitem__icon">${String(index + 1).padStart(2, "0")}</span>
+        <span>
+          <span class="docitem__label">${escapeHtml(node.label)}</span>
+          <span class="docitem__path">${escapeHtml(node.path || `${node.id}/STEP.md`)}</span>
+        </span>
+      </button>
+    `).join("")}`;
+
+  for (const btn of list.querySelectorAll("[data-doc='workflow']")) {
+    btn.addEventListener("click", () => { state.selected = null; state.selectedEdge = null; render(); });
+  }
+  for (const btn of list.querySelectorAll("[data-node]")) {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.node;
+      selectNode(id);
+      const node = nodeById(id);
+      if (node) centerOnNode(node);
+    });
+  }
+}
+
+function centerOnNode(node) {
+  const rect = $("canvas").getBoundingClientRect();
+  state.view = {
+    ...state.view,
+    x: rect.width / 2 - (node.position.x + NW / 2) * state.view.zoom,
+    y: rect.height / 2 - (node.position.y + NH / 2) * state.view.zoom
+  };
+  applyView();
+}
+
+$("btnToggleDocrail").addEventListener("click", () => {
+  state.docrail.open = !state.docrail.open;
+  renderDocrail();
+});
+
+$("leftSplitter").addEventListener("pointerdown", (event) => {
+  if (event.button !== 0) return;
+  event.preventDefault();
+  if (!state.docrail.open) { state.docrail.open = true; renderDocrail(); }
+  const startX = event.clientX;
+  const startWidth = state.docrail.width;
+  const oldCursor = document.body.style.cursor;
+  const oldSelect = document.body.style.userSelect;
+  document.body.style.cursor = "col-resize";
+  document.body.style.userSelect = "none";
+  const onMove = (e) => {
+    const delta = e.clientX - startX;
+    state.docrail.width = Math.max(140, Math.min(520, startWidth + delta));
+    renderDocrail();
+  };
+  const onUp = () => {
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    document.body.style.cursor = oldCursor;
+    document.body.style.userSelect = oldSelect;
+  };
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
+});
 
 /* ---------- 渲染 ---------- */
 function nodeById(id) { return state.detail?.nodes.find((n) => n.id === id) ?? null; }
@@ -345,7 +562,7 @@ function edgeGroup(edge, svg, sp, tp) {
   hit.addEventListener("pointerdown", (e) => e.stopPropagation());
   hit.addEventListener("click", (e) => { e.stopPropagation(); selectEdge(edge.id); });
   const vis = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  vis.setAttribute("class", "edge" + (state.selectedEdge === edge.id ? " sel" : ""));
+  vis.setAttribute("class", `edge ${edge.state || "pending"}` + (state.selectedEdge === edge.id ? " sel" : ""));
   vis.setAttribute("d", d); vis.setAttribute("marker-end", "url(#arrow)");
   group.append(hit, vis);
   if (edge.label) {
@@ -362,17 +579,29 @@ function edgeGroup(edge, svg, sp, tp) {
 }
 
 function render() {
+  updateAddbar();
+  renderDocrail();
   // 宠物迷你模式只更新卡片，不渲染整张画布（窗口只有卡片大小）。
   if (petMode) { updatePet(); return; }
   const d = state.detail;
   $("flowSelect").innerHTML = state.flows.map((f) =>
-    `<option value="${f.id}" ${f.id === state.id ? "selected" : ""}>${f.name}（${f.done}/${f.total}）</option>`).join("");
+    `<option value="${escapeHtml(f.id)}" ${f.id === state.id ? "selected" : ""}>${escapeHtml(f.name)}（${f.done}/${f.total}）</option>`).join("");
   const svg = $("edgesSvg");
   [...svg.querySelectorAll(".edge-group,.conn")].forEach((el) => el.remove());
   const layer = $("nodesLayer");
   layer.innerHTML = "";
-  if (!d) { $("emptyState").style.display = "grid"; updatePet(); return; }
+  if (!d) {
+    $("emptyState").style.display = "grid";
+    // 空状态隐藏右侧检查器（此时只有占位内容），提示卡片才能在整个画布居中。
+    $("inspector").style.display = "none";
+    const msg = $("emptyMsg");
+    if (!state.flows || state.flows.length === 0) msg.innerHTML = '<strong>🚀 AgentFlow</strong>还没有工作流。<br>点击上方「<strong>+ 新建</strong>」按钮创建第一个工作流，<br>或使用终端运行 <code>af create</code>。';
+    else msg.innerHTML = '<strong>🔍 选择一个工作流</strong>从顶部下拉列表选择一个工作流查看。';
+    renderSync(); updatePet(); return;
+  }
   $("emptyState").style.display = "none";
+  $("inspector").style.display = "";
+  renderSync();
   $("progressText").textContent = `${d.progress.done}/${d.progress.total}`;
   $("progressBar").style.width = (d.progress.total ? Math.round(d.progress.done / d.progress.total * 100) : 0) + "%";
 
@@ -390,6 +619,7 @@ function render() {
     el.className = `node k-${node.kind}` +
       (state.selected === node.id ? " sel" : "") +
       (node.ready && !node.done ? " ready" : "") +
+      (node.skipped ? " skipped" : "") +
       (state.conn?.hover === node.id ? " hover-target" : "") +
       (state.liveDrag?.id === node.id ? " dragging" : "");
     el.style.left = pos.x + "px"; el.style.top = pos.y + "px";
@@ -438,12 +668,35 @@ function escapeHtml(value) {
 function updatePet() {
   if (!petMode) return;
   const d = state.detail;
+  const avatar = $("petAvatar");
+  const badge = $("petState");
+  const health = $("petHealth");
   $("petCard").style.display = "grid";
-  if (!d) { $("petName").textContent = "AgentFlow"; $("petNext").textContent = T.noFlow; $("petBar").style.width = "0%"; return; }
+  if (!d) {
+    $("petName").textContent = "AgentFlow";
+    $("petNext").textContent = T.noFlow;
+    $("petBar").style.width = "0%";
+    badge.textContent = T.petIdle;
+    badge.dataset.state = "idle";
+    avatar.dataset.state = "idle";
+    health.dataset.valid = "unknown";
+    health.title = T.petUnknown;
+    return;
+  }
+  const summary = state.flows.find((flow) => flow.id === state.id);
+  health.dataset.valid = summary?.valid === true ? "true" : summary?.valid === false ? "false" : "unknown";
+  health.title = summary?.valid === true ? T.petHealthy
+    : summary?.valid === false ? `${T.petBroken}${summary.issues?.length ? `：${summary.issues[0]}` : ""}`
+    : T.petUnknown;
   $("petName").textContent = d.name;
   const readyNode = d.nodes.find((n) => n.ready && !n.done);
+  const completed = d.progress.total > 0 && d.progress.done >= d.progress.total;
+  const petState = completed ? "done" : "working";
   $("petNext").textContent = readyNode ? `${T.petNext}${readyNode.label}` : T.petAllDone;
   $("petBar").style.width = (d.progress.total ? Math.round(d.progress.done / d.progress.total * 100) : 0) + "%";
+  badge.textContent = completed ? T.petDone : T.petWorking;
+  badge.dataset.state = petState;
+  avatar.dataset.state = petState;
 }
 
 /* ---------- 检查器 ---------- */
@@ -482,6 +735,8 @@ function renderInspector() {
   const draft = state.dirtySel ?? node.content;
   const stateChip = node.done
     ? `<span class="chip ok">${T.chipDone}</span>`
+    : node.skipped ? `<span class="chip">${T.chipSkipped}</span>`
+    : node.kind === "condition" || node.kind === "merge" ? `<span class="chip warn">${T.chipAuto} · ${escapeHtml(node.runtimeStatus)}</span>`
     : node.ready ? `<span class="chip ok">${T.chipReady}</span>`
     : node.blockedBy ? `<span class="chip warn">${T.chipWaiting}${escapeHtml(node.blockedBy.map((id) => nodeById(id)?.label ?? id).join("、"))}</span>`
     : `<span class="chip">${T.chipIdle}</span>`;
@@ -495,11 +750,13 @@ function renderInspector() {
     <div class="pathbox"><span class="k">${T.stepDoc}</span><span class="v">${escapeHtml(node.path)}</span></div>
     <label>label<input id="insLabel" value="${escapeHtml(node.label)}"></label>
     ${node.kind === "condition" ? `<label>${T.gateTitle}<select id="insGate">${GATES.map(([g, name]) => `<option value="${g}" ${g === node.gateType ? "selected" : ""}>${name}</option>`).join("")}</select></label>
-    <label>predicate<select id="insPredicate">${["truthy","falsy","nonEmpty"].map((p) => `<option ${p === node.predicate ? "selected" : ""}>${p}</option>`).join("")}</select></label>` : ""}
+    <label>predicate<select id="insPredicate">${["truthy","falsy","nonEmpty"].map((p) => `<option ${p === node.predicate ? "selected" : ""}>${p}</option>`).join("")}</select></label>
+    <label>${T.valuePath}<input id="insValuePath" value="${escapeHtml(node.valuePath || "")}" placeholder="$.passed"></label>` : ""}
     <label>${T.markdown}<textarea id="insDoc" spellcheck="false">${escapeHtml(draft)}</textarea></label>
+    ${["agent","mapAgent","output"].includes(node.kind) ? `<label>${T.resultJson}<textarea id="insResult" spellcheck="false" style="min-height:72px">${node.result === undefined ? "" : escapeHtml(JSON.stringify(node.result, null, 2))}</textarea></label>` : ""}
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn primary" id="insSave">${T.saveDoc}</button>
-      <button class="btn ${node.done ? "" : "primary"}" id="insToggleDone">${node.done ? T.undoDone : T.markDone}</button>
+      ${["agent","mapAgent","output"].includes(node.kind) ? `<button class="btn ${node.done ? "" : "primary"}" id="insToggleDone">${node.done ? T.undoDone : T.markDone}</button>` : ""}
       <button class="btn danger" id="insDeleteNode">${T.deleteNode}</button>
     </div>`;
   $("insLabel").addEventListener("change", async (e) => {
@@ -516,14 +773,27 @@ function renderInspector() {
     try { await api(postUrl("node-patch"), { nodeId: node.id, patch: { predicate: e.target.value } }); await refresh(); }
     catch (err) { setStatus(err.message); }
   });
+  const valuePath = $("insValuePath");
+  if (valuePath) valuePath.addEventListener("change", async (e) => {
+    try { await api(postUrl("node-patch"), { nodeId: node.id, patch: { valuePath: e.target.value.trim() } }); await refresh(); }
+    catch (err) { setStatus(err.message); }
+  });
   $("insDoc").addEventListener("input", (e) => { state.dirtySel = e.target.value; });
   $("insSave").onclick = async () => {
     try { await api(postUrl("doc"), { nodeId: node.id, content: state.dirtySel ?? node.content }); state.dirtySel = null; setStatus(T.savedDoc + node.path); await refresh(); }
     catch (e) { setStatus(e.message); }
   };
-  $("insToggleDone").onclick = async () => {
-    try { await api(postUrl(node.done ? "undo" : "done"), { nodeId: node.id }); await refresh(); }
-    catch (e) { setStatus(e.message); }
+  const toggleDone = $("insToggleDone");
+  if (toggleDone) toggleDone.onclick = async () => {
+    try {
+      let result;
+      if (!node.done) {
+        const raw = $("insResult")?.value?.trim();
+        if (raw) result = JSON.parse(raw);
+      }
+      await api(postUrl(node.done ? "undo" : "done"), { nodeId: node.id, result, revision: d.revision });
+      await refresh();
+    } catch (e) { setStatus(e.message); renderSync(); }
   };
   $("insDeleteNode").onclick = async () => {
     if (!confirm(`${T.deleteNode}: ${node.label}?`)) return;
@@ -709,7 +979,7 @@ $("btnValidate").onclick = async () => {
   if (!state.id) return;
   try {
     const result = await api(`/api/flow/${encodeURIComponent(state.id)}/validate`);
-    setStatus(result.ok ? `${T.validateOk}${result.order.join(" → ")}` : `${T.validateBad}${result.issues.join("；")}`);
+    setStatus(result.ok ? `${T.validateOk}${result.order.join(" → ")}${result.cyclic ? (LANG === "zh" ? "（允许控制环）" : " (controlled cycle allowed)") : ""}` : `${T.validateBad}${result.issues.join("；")}`);
   } catch (e) { setStatus(e.message); }
 };
 $("btnEvaluate").onclick = () => $("evalPanel").classList.toggle("open");
@@ -722,10 +992,19 @@ $("evalRun").onclick = async () => {
   } catch (e) { $("evalOut").textContent = String(e.message); }
 };
 $("btnLayout").onclick = async () => {
-  try { const r = await api(postUrl("layout"), {}); if (r.ok === false) throw new Error(r.issues?.join("；")); await refresh(); fitView(); }
-  catch (e) { setStatus(e.message); }
+  if (!state.id) return;
+  try {
+    const r = await api(postUrl("layout"), {});
+    if (r.ok === false) throw new Error(r.issues?.join("；"));
+    await refresh(); setStatus(T.layoutDone);
+  } catch (e) { setStatus(String(e.message ?? e)); }
 };
+function updateAddbar() {
+  const hasFlow = Boolean(state.id);
+  for (const btn of document.querySelectorAll(".addbar [data-kind]")) btn.disabled = !hasFlow;
+}
 for (const btn of document.querySelectorAll(".addbar [data-kind]")) btn.addEventListener("click", () => {
+  if (!state.id) { setStatus("请先选择一个工作流"); return; }
   const kind = btn.dataset.kind;
   const center = viewCenter();
   if (kind === "condition") { chooseGate(async (gate) => addNode(kind, center, gate)); return; }
@@ -738,6 +1017,52 @@ async function addNode(kind, center, gateType) {
     setStatus(T.nodeAdded); await refresh();
   } catch (e) { setStatus(e.message); }
 }
+$("btnNewFlow").onclick = () => {
+  // window.prompt 在嵌入式 webview（Electron/IAB）里被禁用，必须用自定义对话框。
+  const bg = dialogBase(`<h3>${T.newFlowTitle}</h3>
+    <label style="display:grid;gap:6px;color:var(--ink2);font-size:12px">${T.newFlowName}
+      <input id="newFlowName" style="border:1px solid var(--border2);border-radius:7px;background:var(--layer2);color:var(--ink);padding:7px 9px;outline:0" value="flow-${Date.now().toString(36).slice(-4)}">
+    </label>
+    <div class="actions">
+      <button class="btn" data-x>${T.cancel}</button>
+      <button class="btn primary" data-ok>${T.createBtn}</button>
+    </div>`);
+  const input = bg.querySelector("#newFlowName");
+  input.focus(); input.select();
+  bg.querySelector("[data-x]").onclick = () => bg.remove();
+  const submit = async () => {
+    const name = input.value.trim();
+    if (!name) { input.focus(); return; }
+    bg.remove();
+    try {
+      const out = await api("/api/flows", { name, description: "", steps: ["第一步","第二步","第三步"] });
+      state.id = out.id;
+      await refresh(); fitView();
+      setStatus(`${T.flowCreated}：${name}`);
+    } catch (e) { setStatus(String(e.message ?? e)); }
+  };
+  bg.querySelector("[data-ok]").onclick = submit;
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+};
+$("btnDeleteFlow").onclick = () => {
+  if (!state.id) return;
+  const bg = dialogBase(`<h3>${T.deleteFlowTitle}</h3><p>${T.deleteFlowBody}</p>
+    <div class="actions">
+      <button class="btn" data-x>${T.cancel}</button>
+      <button class="btn danger" data-ok>${T.deleteBtn}</button>
+    </div>`);
+  bg.querySelector("[data-x]").onclick = () => bg.remove();
+  bg.querySelector("[data-ok]").onclick = async () => {
+    bg.remove();
+    const target = state.id;
+    try {
+      await api(postUrl("flow-delete"), {});
+      state.id = null; state.selected = null; state.selectedEdge = null;
+      await refresh(); fitView();
+      setStatus(`${T.flowDeleted}：${target}`);
+    } catch (e) { setStatus(String(e.message ?? e)); }
+  };
+};
 window.addEventListener("keydown", (event) => {
   const tag = event.target?.tagName?.toLowerCase();
   if (tag === "input" || tag === "textarea" || tag === "select") return;
@@ -761,34 +1086,70 @@ function postUrl(action) { return `/api/flow/${encodeURIComponent(state.id)}/${a
 async function refresh() { await loadList(); await loadDetail(); render(); }
 async function loadList() {
   try { state.flows = await api("/api/flows"); } catch { /* 下轮重试 */ }
-  if (!state.id && state.flows.length > 0) state.id = state.flows[0].id;
+  if (!state.id || !state.flows.some((flow) => flow.id === state.id)) {
+    state.id = state.flows[0]?.id ?? null;
+    state.selected = null;
+    state.selectedEdge = null;
+    state.dirtySel = null;
+  }
 }
 async function loadDetail() {
   if (!state.id) { state.detail = null; return; }
   try { state.detail = await api(`/api/flow/${encodeURIComponent(state.id)}`); }
-  catch (e) { state.detail = null; state.id = null; }
+  catch (e) { state.detail = null; }
 }
+let changeTimer = null;
 const es = new EventSource("/api/events");
 es.addEventListener("change", async () => {
-  const previousId = state.id;
-  await loadList();
-  if (!previousId && state.id) { await loadDetail(); fitView(); }
-  else await loadDetail();
-  render();
+  if (changeTimer) clearTimeout(changeTimer);
+  changeTimer = setTimeout(async () => {
+    const previousId = state.id;
+    await loadList();
+    if (!previousId && state.id) { await loadDetail(); fitView(); }
+    else await loadDetail();
+    render();
+  }, 100);
 });
 
 (async function init() {
   await refresh();
-  fitView();
-  setStatus(T.ready);
+  if (state.id) fitView();
+  setStatus(state.id ? T.ready : "还没有工作流 — 点击顶部「+ 新建」或使用终端 af create");
   if (window.petAPI) {
     $("btnCollapse").style.display = "inline-block";
     $("btnCollapse").addEventListener("click", () => window.petAPI.collapse());
   }
   if (petMode) {
-    $("petCard").addEventListener("click", () => {
+    const avatar = $("petAvatar");
+    let clickTimes = [];
+    const react = (kind) => {
+      avatar.classList.remove("poke", "flail");
+      void avatar.offsetWidth;
+      avatar.classList.add(kind);
+    };
+    avatar.addEventListener("click", () => {
+      const now = Date.now();
+      clickTimes = clickTimes.filter((t) => now - t < 900);
+      clickTimes.push(now);
+      if (clickTimes.length >= 4) { clickTimes = []; react("flail"); }
+    });
+    avatar.addEventListener("dblclick", (event) => {
+      event.preventDefault();
+      react("poke");
+    });
+    $("petSettings").title = T.petSettings;
+    $("petSettings").addEventListener("click", (event) => {
+      event.stopPropagation();
+      window.petAPI?.settings?.();
+    });
+    $("petOpen").addEventListener("click", (event) => {
+      event.stopPropagation();
       if (window.petAPI?.expand) window.petAPI.expand();
       else location.href = location.pathname;
+    });
+    document.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      window.petAPI?.contextMenu?.();
     });
   }
 })();
