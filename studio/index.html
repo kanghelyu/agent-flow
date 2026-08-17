@@ -57,10 +57,14 @@ button:disabled{opacity:0.38;cursor:default}
 .docrail-toggle:hover{background:var(--layer2);color:var(--brand)}
 .docrail-list{flex:1;min-width:0;min-height:0;overflow:auto;padding:9px;display:flex;flex-direction:column;gap:6px}
 .docgroup{padding:5px 7px 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink2)}
-.docitem{width:100%;display:grid;grid-template-columns:24px minmax(0,1fr);gap:9px;align-items:start;text-align:left;border:1px solid transparent;border-radius:10px;background:transparent;color:var(--ink);padding:8px;cursor:pointer}
-.docitem:hover{background:var(--layer2);border-color:var(--border)}
-.docitem.active{background:color-mix(in srgb,var(--brand) 10%,var(--layer));border-color:color-mix(in srgb,var(--brand) 45%,var(--border));color:var(--brand)}
-.docitem__icon{width:24px;height:28px;border:1px solid currentColor;border-radius:5px;display:grid;place-items:center;font-size:9px;font-weight:800;opacity:.76}
+.docitem{width:100%;display:grid;grid-template-columns:24px minmax(0,1fr);gap:9px;align-items:start;text-align:left;border:1px solid transparent;border-radius:10px;background:transparent;color:var(--ink);padding:8px;cursor:pointer;position:relative;overflow:hidden;transition:background .18s ease,border-color .18s ease,color .18s ease,transform .18s ease,box-shadow .18s ease}
+.docitem::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 20%,color-mix(in srgb,var(--brand) 9%,transparent) 48%,transparent 76%);transform:translateX(-125%);transition:transform .44s cubic-bezier(.2,.72,.2,1);pointer-events:none}
+.docitem:hover{background:var(--layer2);border-color:var(--border);transform:translateX(2px)}
+.docitem:hover::after{transform:translateX(125%)}
+.docitem.active{background:color-mix(in srgb,var(--brand) 10%,var(--layer));border-color:color-mix(in srgb,var(--brand) 45%,var(--border));color:var(--brand);box-shadow:0 7px 20px color-mix(in srgb,var(--brand) 10%,transparent)}
+.docitem__icon{width:24px;height:28px;border:1px solid currentColor;border-radius:5px;display:grid;place-items:center;font-size:9px;font-weight:800;opacity:.76;transition:transform .18s ease,opacity .18s ease}
+.docitem.active .docitem__icon{transform:scale(1.045);opacity:.96}
+@media (prefers-reduced-motion:reduce){.docitem,.docitem::after,.docitem__icon{transition:none!important}.docitem:hover{transform:none}.docitem::after{display:none}}
 .docitem__label{display:block;font-size:12px;font-weight:650;white-space:normal;overflow-wrap:anywhere;word-break:break-word}
 .docitem__path{display:block;font:9px/1.4 ui-monospace,Menlo,monospace;color:var(--ink2);white-space:normal;overflow-wrap:anywhere;word-break:break-word}
 .splitter{flex:none;width:9px;background:var(--layer);cursor:col-resize;touch-action:none;position:relative;display:grid;place-items:center}
@@ -499,26 +503,87 @@ function renderDocrail() {
     `).join("")}`;
 
   for (const btn of list.querySelectorAll("[data-doc='workflow']")) {
-    btn.addEventListener("click", () => { state.selected = null; state.selectedEdge = null; render(); });
+    btn.addEventListener("click", () => {
+      state.selected = null;
+      state.selectedEdge = null;
+      render();
+      fitView({ padding: 0.18, duration: 680 });
+    });
   }
   for (const btn of list.querySelectorAll("[data-node]")) {
     btn.addEventListener("click", () => {
       const id = btn.dataset.node;
       selectNode(id);
       const node = nodeById(id);
-      if (node) centerOnNode(node);
+      if (node) focusNode(node, { duration: 720 });
     });
   }
 }
 
-function centerOnNode(node) {
-  const rect = $("canvas").getBoundingClientRect();
-  state.view = {
-    ...state.view,
-    x: rect.width / 2 - (node.position.x + NW / 2) * state.view.zoom,
-    y: rect.height / 2 - (node.position.y + NH / 2) * state.view.zoom
+/* AF_ADVANCED_FILE_NAV_V1
+ * Camera navigation ported from dsh-deepseek-flow.
+ * requestAnimationFrame is used instead of a CSS transform transition so
+ * panning, wheel zooming, node dragging and rapid file switching remain direct.
+ */
+let viewAnimation = null;
+
+function cancelViewAnimation() {
+  const active = viewAnimation;
+  if (!active) return;
+  cancelAnimationFrame(active.frame);
+  viewAnimation = null;
+}
+
+function animateView(target, duration = 0) {
+  cancelViewAnimation();
+  const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  const milliseconds = reduceMotion ? 0 : Math.max(0, Number(duration) || 0);
+  const next = {
+    x: Number(target.x),
+    y: Number(target.y),
+    zoom: Number(target.zoom)
   };
-  applyView();
+  if (milliseconds === 0) {
+    state.view = next;
+    applyView();
+    return;
+  }
+
+  const start = { ...state.view };
+  const startedAt = performance.now();
+  const active = { frame: 0 };
+  viewAnimation = active;
+
+  const tick = (now) => {
+    if (viewAnimation !== active) return;
+    const progress = Math.min(1, Math.max(0, (now - startedAt) / milliseconds));
+    const eased = 1 - Math.pow(1 - progress, 4);
+    state.view = {
+      x: start.x + (next.x - start.x) * eased,
+      y: start.y + (next.y - start.y) * eased,
+      zoom: start.zoom + (next.zoom - start.zoom) * eased
+    };
+    applyView();
+    if (progress < 1) {
+      active.frame = requestAnimationFrame(tick);
+    } else {
+      viewAnimation = null;
+    }
+  };
+  active.frame = requestAnimationFrame(tick);
+}
+
+function focusNode(node, options = {}) {
+  const rect = $("canvas").getBoundingClientRect();
+  const zoom = Math.min(
+    1.15,
+    Math.max(0.4, Number(options.zoom ?? Math.max(state.view.zoom, 0.96)))
+  );
+  animateView({
+    zoom,
+    x: rect.width / 2 - (node.position.x + NW / 2) * zoom,
+    y: rect.height / 2 - (node.position.y + NH / 2) * zoom
+  }, options.duration ?? 720);
 }
 
 $("btnToggleDocrail").addEventListener("click", () => {
@@ -833,6 +898,7 @@ function viewCenter() {
 
 function beginNodeDrag(node, event) {
   if (event.button !== 0 || event.target.closest(".handle")) return;
+  cancelViewAnimation();
   event.preventDefault(); event.stopPropagation();
   selectNode(node.id);
   const startX = event.clientX, startY = event.clientY, origin = node.position;
@@ -868,6 +934,7 @@ function beginNodeDrag(node, event) {
 
 function beginConnect(node, event) {
   if (event.button !== 0) return;
+  cancelViewAnimation();
   event.preventDefault(); event.stopPropagation();
   state.conn = { source: node.id, end: screenToWorld(event.clientX, event.clientY), hover: null };
   const move = (e) => {
@@ -929,6 +996,7 @@ function chooseGate(onPick) {
 const canvas = $("canvas");
 canvas.addEventListener("pointerdown", (event) => {
   if (event.button !== 0 || event.target.closest(".node,.controls,.inspector,.dialog-bg,.eval-panel,.pet-card")) return;
+  cancelViewAnimation();
   event.preventDefault();
   const startX = event.clientX, startY = event.clientY, origin = { ...state.view };
   canvas.classList.add("panning");
@@ -949,6 +1017,7 @@ canvas.addEventListener("pointerdown", (event) => {
   window.addEventListener("pointerup", up);
 });
 canvas.addEventListener("wheel", (event) => {
+  cancelViewAnimation();
   event.preventDefault();
   const rect = canvas.getBoundingClientRect();
   const cx = event.clientX - rect.left, cy = event.clientY - rect.top;
@@ -966,15 +1035,16 @@ canvas.addEventListener("wheel", (event) => {
 }, { passive: false });
 $("zoomIn").onclick = () => zoomCenter(1.2);
 $("zoomOut").onclick = () => zoomCenter(1 / 1.2);
-$("fitView").onclick = () => fitView();
+$("fitView").onclick = () => fitView({ duration: 560 });
 function zoomCenter(factor) {
+  cancelViewAnimation();
   const rect = canvas.getBoundingClientRect();
   const cx = rect.width / 2, cy = rect.height / 2;
   const zoom = Math.min(2.5, Math.max(0.4, state.view.zoom * factor));
   state.view = { zoom, x: cx - (cx - state.view.x) * (zoom / state.view.zoom), y: cy - (cy - state.view.y) * (zoom / state.view.zoom) };
   applyView();
 }
-function fitView() {
+function fitView(options = {}) {
   const d = state.detail;
   if (!d || d.nodes.length === 0) return;
   const rect = canvas.getBoundingClientRect();
@@ -983,10 +1053,14 @@ function fitView() {
   const maxX = Math.max(...d.nodes.map((n) => n.position.x + NW));
   const maxY = Math.max(...d.nodes.map((n) => n.position.y + NH));
   const w = Math.max(1, maxX - minX), h = Math.max(1, maxY - minY);
-  const padding = Math.max(36, Math.min(rect.width, rect.height) * 0.16);
+  const paddingRatio = Number.isFinite(Number(options.padding)) ? Number(options.padding) : 0.16;
+  const padding = Math.max(36, Math.min(rect.width, rect.height) * paddingRatio);
   const zoom = Math.min(1.15, Math.max(0.4, Math.min((rect.width - padding * 2) / w, (rect.height - padding * 2) / h)));
-  state.view = { zoom, x: (rect.width - w * zoom) / 2 - minX * zoom, y: (rect.height - h * zoom) / 2 - minY * zoom };
-  applyView();
+  animateView({
+    zoom,
+    x: (rect.width - w * zoom) / 2 - minX * zoom,
+    y: (rect.height - h * zoom) / 2 - minY * zoom
+  }, options.duration ?? 0);
 }
 
 /* ---------- 工具栏 ---------- */

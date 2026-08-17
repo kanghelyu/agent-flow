@@ -5,7 +5,7 @@
     "en": "AgentFlow CLI, browser Studio, and optional desktop pet for Markdown-first agent workflows.",
     "zh-CN": "面向编码代理的 Markdown-first 工作流 CLI、本地 Studio 和可选桌面小宠。"
   },
-  "version": "0.2.3",
+  "version": "0.2.4",
   "author": {
     "name": "AgentFlow contributors",
     "url": "https://github.com/kanghelyu/agent-flow"

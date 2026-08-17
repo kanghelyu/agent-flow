@@ -50,7 +50,7 @@ import {
 } from "../lib/execution-runtime.mjs";
 
 const { safeSegment } = documentWorkflowInternals;
-const VERSION = "0.2.3";
+const VERSION = "0.2.4";
 const HELP = `af — AgentFlow：给任何编码代理用的 Markdown 工作流 CLI v${VERSION}
 
 用法：af <命令> [参数]

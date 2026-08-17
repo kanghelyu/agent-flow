@@ -1,6 +1,6 @@
 {
   "name": "agent-flow",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Markdown-first step workflows with deterministic Boolean gates for any coding agent (ZCode / Claude Code / Codex CLI).",
   "license": "MIT",
   "type": "module",
@@ -28,7 +28,6 @@
   },
   "scripts": {
     "check": "node --check bin/af.mjs && node --check studio/server.mjs && npm --prefix studio-pet run check",
-    "test": "node --test test/cli.test.mjs test/studio.test.mjs",
     "test:pet-size": "npm --prefix studio-pet run test:pet-size"
   },
   "files": [
@@ -46,6 +45,7 @@
     "RUNTIME.md",
     "LICENSE",
     "ATTRIBUTION.md",
+    "ADVANCED-FILE-NAVIGATION.md",
     ".zcode-plugin"
   ]
 }

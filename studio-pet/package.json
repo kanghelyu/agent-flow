@@ -1,6 +1,6 @@
 {
   "name": "agent-flow-studio-pet",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "AgentFlow desktop pet. Shell from pixelpets (MIT) — a pixel-art cat overlay, stripped to cat-only + AgentFlow status bridge.",
   "main": "src/main.js",
   "license": "MIT",
